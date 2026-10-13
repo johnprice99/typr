@@ -1,0 +1,97 @@
+{
+  "fill-specializations": [
+    {
+      "value": {
+        "solid": "extended-srgb:0.98824,0.95686,0.90980,1.00000"
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "solid": "extended-srgb:0.16078,0.16078,0.15686,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Mark",
+      "layers": [
+        {
+          "name": "t",
+          "glass": true,
+          "image-name-specializations": [
+            {
+              "value": "glyph-light.png"
+            },
+            {
+              "appearance": "dark",
+              "value": "glyph-dark.png"
+            }
+          ],
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "extended-srgb:0.15294,0.15294,0.14902,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "extended-srgb:0.98824,0.95686,0.90980,1.00000"
+              }
+            },
+            {
+              "appearance": "tinted",
+              "value": {
+                "solid": "extended-srgb:1.00000,1.00000,1.00000,1.00000"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cursor",
+          "glass": true,
+          "image-name-specializations": [
+            {
+              "value": "bar-light.png"
+            },
+            {
+              "appearance": "dark",
+              "value": "bar-dark.png"
+            }
+          ],
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "extended-srgb:0.99216,0.77647,0.12549,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "extended-srgb:0.99608,0.83922,0.08235,1.00000"
+              }
+            },
+            {
+              "appearance": "tinted",
+              "value": "automatic"
+            }
+          ]
+        }
+      ],
+      "lighting": "individual",
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.25
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}

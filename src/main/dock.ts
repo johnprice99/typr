@@ -1,18 +1,16 @@
 import { app, nativeTheme } from 'electron'
 import { join } from 'path'
 
-// The Dock icon follows the appearance: light or dark. It follows Typr's
-// Appearance setting, which by default follows the system. (Finder and
-// Launchpad show the static icon from build/icon.icns.)
+// The installed app's icon (build/Typr.icon) is switched by macOS itself for
+// light, dark and tinted icon styles. Only when running from source (npm run
+// dev), where Electron's own icon would show, does Typr set the Dock icon,
+// following the appearance.
 
-const iconPath = (name: string): string =>
-  app.isPackaged ? join(process.resourcesPath, 'icons', name) : join(__dirname, '../../resources', name)
-
-export function updateDockIcon(): void {
-  app.dock?.setIcon(iconPath(nativeTheme.shouldUseDarkColors ? 'icon-dark.png' : 'icon-light.png'))
-}
+const devIcon = (dark: boolean): string => join(__dirname, '../../resources', dark ? 'icon-dark.png' : 'icon-light.png')
 
 export function followAppearanceInDock(): void {
-  updateDockIcon()
-  nativeTheme.on('updated', updateDockIcon)
+  if (app.isPackaged) return
+  const update = (): void => app.dock?.setIcon(devIcon(nativeTheme.shouldUseDarkColors))
+  update()
+  nativeTheme.on('updated', update)
 }

@@ -6,13 +6,11 @@ directories:
 files:
   - out/**
   - package.json
-# Light and dark Dock icons, swapped at runtime to match the appearance.
-extraResources:
-  - from: resources/
-    to: icons/
-    filter: ['icon-*.png']
 mac:
-  icon: build/icon.icns
+  # Icon Composer icon: macOS switches it for light, dark and tinted icon
+  # styles everywhere (Dock, Finder, Launchpad). Compiled with Xcode's actool;
+  # build/icon.icns is the fallback for older macOS.
+  icon: build/Typr.icon
   category: public.app-category.productivity
   target:
     - dmg
