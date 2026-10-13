@@ -261,3 +261,47 @@ test.describe('opening folders', () => {
     await expect.poll(() => t.savedSettings().folders).toEqual([t.lib, other])
   })
 })
+
+test.describe('folder order', () => {
+  test('drag a folder header to reorder; the order is remembered', async ({ launch }) => {
+    const t = await launch({ files: { 'Note.md': '# Note' } })
+    const stories = join(t.outside, 'Stories')
+    mkdirSync(stories)
+    writeFileSync(join(stories, 'Chapter.md'), '# Chapter')
+    await t.app.evaluate(
+      async (_e, folders) => {
+        const g = globalThis as never as { __typrReset: (s: unknown) => Promise<void> }
+        await g.__typrReset({
+          folders,
+          sidebar: true,
+          focus: 'off',
+          theme: 'light',
+          window: { maximized: false, bounds: { x: 60, y: 40, width: 1200, height: 900 } }
+        })
+      },
+      [t.lib, stories]
+    )
+    await t.page.waitForFunction(() => (window as never as { typr?: { ready: boolean } }).typr?.ready === true)
+    await expect(t.page.locator('.sidebar-header')).toHaveText(['library', 'Stories'])
+    await t.page
+      .locator('.sidebar-header', { hasText: 'Stories' })
+      .dragTo(t.page.locator('.sidebar-header', { hasText: 'library' }), {
+        targetPosition: { x: 20, y: 2 }
+      })
+    await expect(t.page.locator('.sidebar-header')).toHaveText(['Stories', 'library'])
+    await expect.poll(() => t.savedSettings().folders).toEqual([stories, t.lib])
+  })
+
+  test('a reorder must be the same folders (it cannot add one)', async ({ launch }) => {
+    const t = await launch()
+    const result = await t.page.evaluate(
+      (lib) =>
+        window.api.reorderFolders([lib, '/']).then(
+          () => 'allowed',
+          (e) => String(e)
+        ),
+      t.lib
+    )
+    expect(result).toContain('exactly the open folders')
+  })
+})

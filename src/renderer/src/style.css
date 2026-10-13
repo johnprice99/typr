@@ -168,9 +168,31 @@ body {
 .sidebar-open #sidebar {
   transform: none;
 }
-/* Each open folder is a section with a header you can click to collapse. */
+/* Each open folder is a section with a header you can click to collapse, or drag to reorder. */
+.sidebar-folder {
+  position: relative;
+}
 .sidebar-folder + .sidebar-folder {
   margin-top: 14px;
+}
+.sidebar-folder.dragging {
+  opacity: 0.4;
+}
+.sidebar-folder.drop-before::before,
+.sidebar-folder.drop-after::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+.sidebar-folder.drop-before::before {
+  top: -8px;
+}
+.sidebar-folder.drop-after::after {
+  bottom: -8px;
 }
 .sidebar-header {
   margin: 0 6px 4px;

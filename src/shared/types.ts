@@ -76,6 +76,8 @@ export interface Api {
   openFolder(): Promise<string | null>
   /** Removes a folder from the sidebar (nothing on disk changes). */
   closeFolder(path: string): Promise<void>
+  /** Puts the open folders in a new order (it must be the same folders). */
+  reorderFolders(order: string[]): Promise<void>
   setCurrent(path: string | null, title: string): Promise<void>
   /** Adds to File › Open Recent. */
   addRecent(path: string): Promise<void>

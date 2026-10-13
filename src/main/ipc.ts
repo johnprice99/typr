@@ -214,6 +214,18 @@ export function registerIpc(): void {
     await refreshFiles()
   })
 
+  // Only a rearrangement of the folders already open; this can't add one.
+  handle('reorderFolders', async (order: string[]) => {
+    const next = order.map(abs)
+    const same =
+      next.length === settings.folders.length &&
+      new Set(next).size === next.length &&
+      next.every((f) => settings.folders.includes(f))
+    if (!same) throw new Error('A new order must contain exactly the open folders')
+    updateSetting('folders', next)
+    await refreshFiles()
+  })
+
   handle('setCurrent', (path: string | null, title: string) => {
     watchCurrent(path)
     const win = getWindow()

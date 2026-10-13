@@ -16,6 +16,48 @@ export interface SidebarHandlers {
   open: (path: string) => void
   menu: (path: string, isDir: boolean) => void
   openFolder: () => void
+  /** The open folders, in the order you dragged them into. */
+  reorder: (order: string[]) => void
+}
+
+/** Lets each folder's header be dragged above or below the others. */
+function makeReorderable(sections: HTMLElement[], paths: string[], reorder: (order: string[]) => void): void {
+  let dragging: string | null = null
+  const clear = (): void => sections.forEach((s) => s.classList.remove('drop-before', 'drop-after'))
+  sections.forEach((section, i) => {
+    const header = section.firstElementChild as HTMLElement
+    header.draggable = true
+    header.addEventListener('dragstart', (e) => {
+      dragging = paths[i]
+      e.dataTransfer!.effectAllowed = 'move'
+      e.dataTransfer!.setData('text/plain', paths[i])
+      section.classList.add('dragging')
+    })
+    header.addEventListener('dragend', () => {
+      dragging = null
+      section.classList.remove('dragging')
+      clear()
+    })
+    section.addEventListener('dragover', (e) => {
+      if (!dragging) return
+      e.preventDefault()
+      e.dataTransfer!.dropEffect = 'move'
+      const box = section.getBoundingClientRect()
+      const after = e.clientY > box.top + box.height / 2
+      clear()
+      if (paths[i] !== dragging) section.classList.add(after ? 'drop-after' : 'drop-before')
+    })
+    section.addEventListener('drop', (e) => {
+      if (!dragging) return
+      e.preventDefault()
+      const after = section.classList.contains('drop-after')
+      clear()
+      if (paths[i] === dragging) return
+      const order = paths.filter((p) => p !== dragging)
+      order.splice(order.indexOf(paths[i]) + (after ? 1 : 0), 0, dragging)
+      reorder(order)
+    })
+  })
 }
 
 // Subfolders start collapsed and are remembered when you open them; the open
@@ -131,18 +173,23 @@ export function renderSidebar(el: HTMLElement, folders: FolderListing[], current
     return
   }
 
-  el.replaceChildren(
-    ...folders.map((f) => {
-      const top = tree(f)
-      const section = document.createElement('section')
-      section.className = 'sidebar-folder'
-      section.append(row(top, 0, 'sidebar-header', top.name))
-      const body = top.children.length
-        ? draw(top.children, 0)
-        : Object.assign(document.createElement('p'), { className: 'sidebar-note', textContent: 'No documents yet' })
-      if (isCollapsed(top.path)) body.classList.add('hidden')
-      section.append(body)
-      return section
-    })
-  )
+  const sections = folders.map((f) => {
+    const top = tree(f)
+    const section = document.createElement('section')
+    section.className = 'sidebar-folder'
+    section.append(row(top, 0, 'sidebar-header', top.name))
+    const body = top.children.length
+      ? draw(top.children, 0)
+      : Object.assign(document.createElement('p'), { className: 'sidebar-note', textContent: 'No documents yet' })
+    if (isCollapsed(top.path)) body.classList.add('hidden')
+    section.append(body)
+    return section
+  })
+  if (folders.length > 1)
+    makeReorderable(
+      sections,
+      folders.map((f) => f.path),
+      h.reorder
+    )
+  el.replaceChildren(...sections)
 }

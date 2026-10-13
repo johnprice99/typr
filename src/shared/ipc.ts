@@ -19,6 +19,7 @@ export const INVOKE_CHANNELS = [
   'pickImage',
   'openFolder',
   'closeFolder',
+  'reorderFolders',
   'setCurrent',
   'addRecent',
   'setSetting',

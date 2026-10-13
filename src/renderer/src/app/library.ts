@@ -62,7 +62,8 @@ export function drawSidebar(): void {
   renderSidebar($('sidebar'), app.folders, doc?.path ?? null, {
     open: (path) => open(path),
     menu: (path, isDir) => api.itemMenu(path, isDir),
-    openFolder: () => void openFolder()
+    openFolder: () => void openFolder(),
+    reorder: (order) => void api.reorderFolders(order)
   })
 }
 
