@@ -1,3 +1,4 @@
+import { mkdirSync, readdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { expect, settle, test } from './fixtures'
 
@@ -42,23 +43,6 @@ test.describe('comments', () => {
   })
 })
 
-test.describe('links between notes', () => {
-  test('following a link to a missing note opens it, and Back returns', async ({ launch }) => {
-    const t = await launch()
-    await t.setText('Meet [[Bob]]', 8)
-    await settle(t.page)
-    await t.command('follow-link')
-    await expect(t.page.locator('#title')).toHaveText('Bob')
-    await expect(t.page.locator('#toast')).toContainText('New note')
-    expect(t.ls()).toEqual(['Meet Bob.md'])
-    await t.page.keyboard.insertText('Bob is tall.')
-    await settle(t.page)
-    expect(t.ls()).toEqual(['Bob.md', 'Meet Bob.md'])
-    await t.command('back')
-    await expect(t.page.locator('#title')).toHaveText('Meet Bob')
-  })
-})
-
 test.describe('app chrome', () => {
   test('menus have the agreed items and shortcuts', async ({ launch }) => {
     const t = await launch()
@@ -89,26 +73,70 @@ test.describe('app chrome', () => {
   test('Settings works from the keyboard and saves', async ({ launch }) => {
     const t = await launch()
     await t.command('settings')
-    await expect(t.page.locator('.setting-label')).toHaveText(['Appearance', 'Text size', 'Library'])
+    await expect(t.page.locator('.setting-label')).toHaveText(['Appearance', 'Text size'])
     await t.page.keyboard.press('ArrowRight') // Appearance: Light → Dark
     await expect(t.page.locator('.segmented [aria-checked=true]').first()).toHaveText('Dark')
     await expect.poll(() => t.savedSettings().theme).toBe('dark')
     await t.page.keyboard.press('Escape')
   })
 
-  test('first launch asks where writing should live; Esc picks Documents', async ({ launch }) => {
-    const t = await launch({ settings: { librarySet: false } })
-    await expect(t.page.locator('.palette input')).toHaveAttribute('placeholder', /Where should your writing live/)
-    await expect(t.page.locator('.palette-item .label').first()).toHaveText('Documents')
+  test('with no folder open, a new document asks where to go when you save', async ({ launch }) => {
+    const t = await launch({ settings: { folders: [] } })
+    await expect(t.page.locator('.sidebar-empty')).toContainText('No folders open')
+    await t.setText('Words with nowhere to go')
+    await expect(t.page.locator('#stats')).toContainText('Not saved yet')
+    await t.command('save')
+    await expect(t.page.locator('.palette input')).toHaveAttribute('placeholder', 'Save this document in…')
+    await expect(t.page.locator('.palette-item .label')).toHaveText(['Choose a folder…'])
+    await t.page.keyboard.press('Escape')
+    // Leaving the document asks too, and stays put if you don't choose.
+    await t.command('new')
+    await expect(t.page.locator('.palette input')).toHaveAttribute('placeholder', 'Save this document in…')
+    await t.page.keyboard.press('Escape')
+    expect(await t.text()).toBe('Words with nowhere to go')
   })
 
-  test('folders that only hold pictures stay out of the library list', async ({ launch }) => {
+  test('several folders show in the sidebar; each collapses, and new documents go next to the open one', async ({ launch }) => {
+    const t = await launch({ files: { 'Note.md': '# Note' } })
+    const stories = join(t.outside, 'Stories')
+    mkdirSync(stories)
+    writeFileSync(join(stories, 'Chapter.md'), '# Chapter')
+    await t.app.evaluate(
+      async (_e, folders) => {
+        const g = globalThis as never as { __typrReset: (s: unknown) => Promise<void> }
+        await g.__typrReset({
+          folders,
+          focus: 'off',
+          theme: 'light',
+          window: { maximized: false, bounds: { x: 60, y: 40, width: 1200, height: 900 } }
+        })
+      },
+      [t.lib, stories]
+    )
+    await t.page.waitForFunction(() => (window as never as { typr?: { ready: boolean } }).typr?.ready === true)
+    await t.command('toggle-sidebar')
+    await expect(t.page.locator('.sidebar-header')).toHaveText(['library', 'Stories'])
+    await expect(t.page.locator('#sidebar .file')).toHaveText(['Note', 'Chapter'])
+    await t.page.locator('.sidebar-header').nth(1).click()
+    await expect(t.page.locator('#sidebar .file:visible')).toHaveText(['Note'])
+    // Two folders and nothing open: no guessing. Open a story, then New goes beside it.
+    await t.open(join(stories, 'Chapter.md'))
+    await expect(t.page.locator('#title')).toHaveText('Chapter')
+    await t.command('new')
+    await t.page.keyboard.insertText('# Chapter two')
+    await settle(t.page)
+    expect(readdirSync(stories).sort()).toEqual(['Chapter two.md', 'Chapter.md'])
+    await t.command('close-folder', stories)
+    await expect(t.page.locator('.sidebar-header')).toHaveText(['library'])
+  })
+
+  test('folders that only hold pictures stay out of the sidebar', async ({ launch }) => {
     const t = await launch({ files: { 'Pictures/a.png': 'x', 'Stories/One.md': '# One' } })
-    const files = await t.page.evaluate(() => window.api.init().then((s) => s.files))
-    expect(files).toEqual(['Stories/', 'Stories/One.md'])
+    const entries = await t.page.evaluate(() => window.api.init().then((s) => s.folders[0].entries))
+    expect(entries).toEqual(['Stories/', 'Stories/One.md'])
   })
 
-  test('files outside the library can only be changed if Typr opened them', async ({ launch }) => {
+  test('files outside the open folders can only be changed if Typr opened them', async ({ launch }) => {
     const t = await launch()
     const stranger = join(t.outside, 'not-mine.md')
     const result = await t.page.evaluate(
@@ -124,7 +152,7 @@ test.describe('app chrome', () => {
 })
 
 test.describe('file-system guards', () => {
-  test('".." cannot be used to reach outside the library', async ({ launch }) => {
+  test('".." cannot be used to reach outside the open folders', async ({ launch }) => {
     const t = await launch()
     const tricks = await t.page.evaluate(async (lib) => {
       const attempt = (p: Promise<unknown>): Promise<string> =>
@@ -136,21 +164,58 @@ test.describe('file-system guards', () => {
         trashParent: await attempt(window.api.trash(`${lib}/..`)),
         trashUp: await attempt(window.api.trash(`${lib}/../../x.md`)),
         createUp: await attempt(window.api.create(`${lib}/../..`, 'escape', 'x')),
-        renameLibrary: await attempt(window.api.rename(lib, 'Renamed')),
-        setLibrary: await attempt(window.api.setLibrary('/')),
-        setSetting: await attempt(window.api.setSetting('library', '/'))
+        renameFolder: await attempt(window.api.rename(lib, 'Renamed')),
+        setFolders: await attempt(window.api.setSetting('folders', ['/']))
       }
     }, t.lib)
     for (const [what, result] of Object.entries(tricks)) expect(result, what).not.toBe('allowed')
   })
 
-  test('a [[link]] with ".." stays inside the library', async ({ launch }) => {
+  test('a new document named with ".." stays inside the folder', async ({ launch }) => {
     const t = await launch()
-    await t.setText('[[../../Escape]]', 4)
-    await t.command('follow-link')
+    await t.command('quick-open')
+    await t.page.keyboard.insertText('../../Escape')
+    await t.page.locator('.palette-item', { hasText: 'New document' }).click()
     await expect(t.page.locator('#title')).toHaveText('Escape')
     await t.page.keyboard.insertText('hi')
     await settle(t.page)
     expect(t.ls()).toContain('Escape.md')
+  })
+})
+
+test.describe('remote images and fonts', () => {
+  test('remote images wait for a click before loading', async ({ launch }) => {
+    const t = await launch()
+    let requests = 0
+    // A stand-in for the internet, so nothing leaves the machine.
+    await t.page.route('https://images.example.test/**', (route) => {
+      requests++
+      const png = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGNoaGhgYGBgYGBgYGBgAAAJ+AEB1l5xfgAAAABJRU5ErkJggg==',
+        'base64'
+      )
+      return route.fulfill({ status: 200, contentType: 'image/png', body: png })
+    })
+    await t.setText('![harbour](https://images.example.test/harbour.png)\n\nEnd.')
+    await expect(t.page.locator('.md-remote-img')).toContainText('Click to load')
+    expect(requests).toBe(0)
+    await t.page.locator('.md-remote-img').dispatchEvent('mousedown')
+    await expect.poll(() => t.page.evaluate(() => document.querySelector<HTMLImageElement>('.md-img')?.naturalWidth)).toBe(2)
+    expect(requests).toBe(1)
+  })
+
+  test('the Markdown view uses the Mac’s built-in monospace font', async ({ launch }) => {
+    const t = await launch({ settings: { showMarkdown: true } })
+    const usesMenlo = await t.page.evaluate(() => {
+      const c = document.createElement('canvas').getContext('2d')!
+      const box = (font: string): string => {
+        c.font = `40px ${font}`
+        const m = c.measureText('Hgjy@')
+        return `${m.width}|${m.actualBoundingBoxAscent}|${m.actualBoundingBoxDescent}`
+      }
+      const editorFont = getComputedStyle(document.querySelector('.cm-scroller')!).fontFamily
+      return box(editorFont) === box('Menlo') && box('Menlo') !== box('Courier')
+    })
+    expect(usesMenlo).toBe(true)
   })
 })

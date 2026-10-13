@@ -1,15 +1,17 @@
 import { isImagePath, isTextPath } from '../../../shared/files'
 import { encodePath, isInside, relativePath, stem } from '../paths'
 import { api, app, notify } from './context'
+import { folderOf } from './library'
 import { docDir, open } from './session'
 
-// Images are linked where they are, never copied. Inside the library the link
-// is relative, so it survives moving or syncing the library; elsewhere it's absolute.
+// Images are linked where they are, never copied. When the image and the
+// document are in the same open folder the link is relative, so it survives
+// moving or syncing that folder; otherwise it's absolute.
 
 function imageMarkdown(file: string): string {
   const here = docDir()
-  const lib = app.settings.library
-  const target = isInside(file, lib) && isInside(here, lib) ? relativePath(here, file) : file
+  const folder = folderOf(file)
+  const target = here && folder && isInside(here, folder) ? relativePath(here, file) : file
   const alt = stem(file)
     .replace(/\.[^.]+$/, '')
     .replace(/[[\]]/g, '')

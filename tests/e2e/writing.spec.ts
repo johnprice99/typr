@@ -203,7 +203,7 @@ test.describe('fixes from the second review', () => {
     expect(t.read('Doomed.md')).toBe('start and my last words')
   })
 
-  test('a file outside the library that is renamed in Finder keeps saving', async ({ launch }) => {
+  test('a file outside the open folders that is renamed in Finder keeps saving', async ({ launch }) => {
     const t = await launch()
     const before = join(t.outside, 'a.md')
     writeFileSync(before, 'hello')

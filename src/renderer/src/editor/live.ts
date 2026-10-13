@@ -3,7 +3,6 @@ import { Decoration, DecorationSet, EditorView, WidgetType } from '@codemirror/v
 import { syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
 import { measure, px } from './markdown'
-import { inCode, WIKILINK } from './syntax'
 
 // Formatted view: the file stays plain Markdown, but its syntax is hidden and
 // rendered (headings, bold, links, bullets, checkboxes, images…). Wherever the
@@ -53,6 +52,12 @@ class CheckboxWidget extends WidgetType {
   }
 }
 
+// Images from the internet aren't fetched until you ask: loading one tells its
+// website that (and when) the document was opened. Once clicked, that address
+// stays loaded for the rest of the session.
+const remoteAllowed = new Set<string>()
+const isRemote = (src: string): boolean => /^https?:/i.test(src)
+
 class ImageWidget extends WidgetType {
   constructor(
     readonly src: string,
@@ -64,6 +69,28 @@ class ImageWidget extends WidgetType {
     return other.src === this.src && other.alt === this.alt
   }
   toDOM(view: EditorView): HTMLElement {
+    // The image (or the placeholder) sits in a wrapper: CodeMirror keeps a
+    // widget's outer element, so swapping must happen inside it.
+    const wrap = document.createElement('span')
+    wrap.className = 'md-img-wrap'
+    if (isRemote(this.src) && !remoteAllowed.has(this.src)) {
+      const ask = document.createElement('button')
+      ask.className = 'md-remote-img'
+      ask.textContent = `Remote image${this.alt ? ` “${this.alt}”` : ''} · Click to load`
+      ask.title = this.src
+      ask.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        remoteAllowed.add(this.src)
+        ask.replaceWith(this.image(view))
+        view.requestMeasure()
+      })
+      wrap.append(ask)
+    } else {
+      wrap.append(this.image(view))
+    }
+    return wrap
+  }
+  image(view: EditorView): HTMLImageElement {
     const img = document.createElement('img')
     img.className = 'md-img'
     // Images arrive after layout; re-measure so the cursor and clicks line up.
@@ -72,6 +99,9 @@ class ImageWidget extends WidgetType {
     img.src = this.src
     img.alt = this.alt
     return img
+  }
+  ignoreEvent(): boolean {
+    return true
   }
 }
 
@@ -240,6 +270,8 @@ export function buildLive(view: EditorView, opts: LiveOptions): DecorationSet {
           }
           case 'Link': {
             if (touches(ref.from, ref.to) || !oneLine(ref.from, ref.to)) return
+            // "[text]" on its own is just text in brackets, not a link: leave it alone.
+            if (!node.getChild('URL') && !node.getChild('LinkLabel')) return
             const marks = node.getChildren('LinkMark')
             if (marks.length >= 2) {
               hide(ref.from, marks[0].to)
@@ -266,21 +298,6 @@ export function buildLive(view: EditorView, opts: LiveOptions): DecorationSet {
         }
       }
     })
-
-    // [[Wikilinks]] aren't part of the Markdown grammar, so find them by pattern.
-    for (let pos = from; pos <= to;) {
-      const l = doc.lineAt(pos)
-      for (const m of l.text.matchAll(WIKILINK)) {
-        const start = l.from + m.index!
-        const end = start + m[0].length
-        if (touches(start, end) || inCode(state, start)) continue
-        hide(start, start + 2)
-        hide(end - 2, end)
-        const bar = m[1].indexOf('|')
-        if (bar >= 0) hide(start + 2, start + 3 + bar)
-      }
-      pos = l.to + 1
-    }
   }
   return Decoration.set(out, true)
 }

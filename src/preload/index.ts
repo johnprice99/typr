@@ -20,7 +20,7 @@ const api: Api = {
   testing: process.argv.includes('--typr-test'),
   pathForFile: (file) => webUtils.getPathForFile(file),
   flushed: (saved, title) => ipcRenderer.send(FLUSHED, saved, title),
-  onFiles: on('files'),
+  onFolders: on('folders'),
   onSettings: on('settings'),
   onCommand: on('command'),
   onOpen: on('open'),

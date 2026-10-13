@@ -1,4 +1,4 @@
-import type { Api, Command, Settings } from './types'
+import type { Api, Command, FolderListing, Settings } from './types'
 
 // Every message between the main process and the window is defined here, typed
 // against the Api interface, so a misspelt channel or a wrong argument is a
@@ -17,9 +17,8 @@ export const INVOKE_CHANNELS = [
   'exists',
   'openDialog',
   'pickImage',
-  'libraryOptions',
-  'setLibrary',
-  'chooseLibrary',
+  'openFolder',
+  'closeFolder',
   'setCurrent',
   'addRecent',
   'setSetting',
@@ -32,7 +31,7 @@ export type Invoke = Pick<Api, InvokeChannel>
 
 /** Messages from the main process to the window, with their arguments. */
 export interface Events {
-  files: [files: string[]]
+  folders: [folders: FolderListing[]]
   settings: [settings: Settings]
   command: [cmd: Command]
   open: [path: string]

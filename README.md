@@ -3,15 +3,16 @@
 A quiet Markdown editor. Open it and type.
 
 - Opens maximised on a blank page (it remembers the window size if you change it). It saves itself as you write. A new document is named after its first line, and the name settles once you move on; rename any time with ⇧⌘R or by clicking the title.
-- Plain `.md` files in real folders. You choose the library folder on first launch; change it with **Library Folder…**.
-- `[[Wikilinks]]` and normal Markdown links. Following a link to a note that doesn't exist opens it, and the file is created once you type.
+- Plain `.md` files in ordinary folders. **Open Folder…** (⇧⌘O) adds any folder to the sidebar, so notes in Documents and stories in a project folder can sit side by side. Each folder collapses; right-click to close it (nothing on disk changes).
+- A new document is saved next to the one you're in (or in the only open folder). If there's nowhere obvious, it waits: ⌘S, leaving it, or quitting asks which folder.
+- Markdown links: ⌘-click (or ⌘↩) opens web links in your browser and links to other documents in Typr.
 - Notices when the open file is renamed, moved or deleted in Finder.
 - You edit a formatted page: headings, bold, links, bullets, checkboxes and images look the way they will read, and the Markdown appears only where your cursor is. **Show Markdown** (⌘E) switches to the plain-text view. The file on disk is always plain Markdown.
 - Focus mode (paragraph by default). Links in dimmed text keep a soft underline.
 - Tables: **Insert Table**, then Tab / ⇧Tab between cells (Tab in the last cell adds a row). They render as a table when you're not editing them.
-- Images: **Insert Image…** or drag one onto the page. Typr links to the file where it is (a relative link inside your library, absolute elsewhere); nothing is copied.
+- Images: **Insert Image…** or drag one onto the page. Typr links to the file where it is (a relative link within the same open folder, absolute otherwise); nothing is copied. Images from the internet show a placeholder until you click, so opening a document never tells a website you read it.
 - Comments for proofreading: select text, ⇧⌘M, type a note. They're stored in the file as [CriticMarkup](https://fletcher.github.io/MultiMarkdown-6/syntax/critic.html) (`{==text==}{>>note<<}`), shown as highlighted text; hover to read, edit or resolve. **Go to Comment…** lists them all.
-- Settings (⌘,): appearance, text size and library folder. They apply to the whole app.
+- Settings (⌘,): appearance and text size.
 - If another app changes a file while you're typing in it, nothing is lost: their version is kept as a “(changed elsewhere)” copy next to it.
 
 ```sh
@@ -46,6 +47,8 @@ Everything is in the command palette (⇧⌘P), so you never need the mouse.
 | ⌘P           | Go to file, or type a new name to create one                    |
 | ⌘N           | New document                                                    |
 | ⌘O           | Open any file                                                   |
+| ⇧⌘O          | Open a folder in the sidebar                                    |
+| ⌘S           | Save (only needed to choose where a new document goes)          |
 | ⇧⌘R          | Rename (or click the title)                                     |
 | ⌘\\          | Show / hide library                                             |
 | ⌘D           | Focus: Off → Paragraph → Sentence                               |
@@ -60,13 +63,13 @@ Everything is in the command palette (⇧⌘P), so you never need the mouse.
 | ⌘K           | Insert link. Pasting a URL onto selected text also makes a link |
 | ⇧⌘M          | Add a comment (or edit the one under the cursor)                |
 
-Font: [IBM Plex Mono](https://github.com/IBM/plex) (SIL OFL) for the Markdown view and code; the formatted view uses the Mac's system font.
+Fonts: the Mac's own. The formatted view uses the system font; the Markdown view and code use Menlo (Electron can't reach SF Mono).
 
 ## Code layout
 
-- `src/main/` — the Electron main process: `settings`, `library` (listing and safe file names), `watcher` (the open file), `ipc` (file access for the window), `menu`, `window`, `dock`.
+- `src/main/` — the Electron main process: `settings`, `library` (listing and watching folders, safe file names, atomic writes), `watcher` (the open file), `ipc` (file access for the window), `menu`, `window`, `dock`.
 - `src/preload/` — the bridge to the window. Every message is typed in `src/shared/ipc.ts`.
-- `src/renderer/src/app/` — the app: documents and saving (`session`), links, images, comments, library, commands.
+- `src/renderer/src/app/` — the app: documents and saving (`session`), links, images, comments, open folders (`library`), commands.
 - `src/renderer/src/editor/` — the CodeMirror editor and its features (formatted view, focus, find, tables, comments).
 - `src/renderer/src/ui/` — the palette, settings and about panels, and the library sidebar.
 - `tests/unit/` (Vitest) and `tests/e2e/` (Playwright).

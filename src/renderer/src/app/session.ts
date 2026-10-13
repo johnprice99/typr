@@ -9,8 +9,8 @@ import { api, app, errorText, notify } from './context'
 export interface Doc {
   /** null until there's something worth saving. */
   path: string | null
-  /** Where the file will be created. */
-  dir: string
+  /** Where the file will be created; null until you choose (when nothing was open to put it next to). */
+  dir: string | null
   /** A name chosen up front (e.g. from a link); otherwise the first line names it. */
   name?: string
   /** Last content written to disk. */
@@ -35,7 +35,7 @@ export function onDocumentChange(cb: () => void): void {
   listeners.push(cb)
 }
 
-const untitled = (dir: string, name?: string): Doc => ({
+const untitled = (dir: string | null, name?: string): Doc => ({
   path: null,
   dir,
   name,
@@ -62,6 +62,32 @@ export function scheduleSave(): void {
   saveTimer = window.setTimeout(save, 400)
 }
 
+/** Asks which folder a new document should go in (set by main.ts); resolves null if cancelled. */
+let whereToSave: () => Promise<string | null> = async () => null
+export function setWhereToSave(ask: () => Promise<string | null>): void {
+  whereToSave = ask
+}
+
+/**
+ * Where an unsaved document will go: its own folder, or (if it has none) the
+ * only open folder when exactly one is open. Worked out at save time, so opening
+ * a folder after you start typing just works.
+ */
+const placeOf = (d: Doc): string | null => d.dir ?? (app.folders.length === 1 ? app.folders[0].path : null)
+
+/** A new document with words in it but nowhere to go yet. */
+export const needsAPlace = (d: Doc = doc): boolean => !d.path && !placeOf(d) && app.editor.getDoc().trim() !== ''
+
+/** ⌘S: everything saves itself, but a new document with nowhere to go asks where first. */
+export async function saveNow(): Promise<void> {
+  if (needsAPlace()) {
+    const dir = await whereToSave()
+    if (!dir) return
+    doc.dir = dir
+  }
+  if (await save()) notify(`Saved “${title()}”`)
+}
+
 /**
  * Saves now: the document and its text as they are at this moment, even if you
  * switch documents before the write happens. Resolves false if it failed (the
@@ -86,8 +112,11 @@ export function save(): Promise<boolean> {
 
 async function writeNow(d: Doc, text: string): Promise<void> {
   if (!d.path) {
-    if (!text.trim()) return
-    d.path = await api.create(d.dir, d.name ?? deriveName(text), toDisk(text, d.eol))
+    // Nothing to save yet, or nowhere to put it (⌘S or leaving will ask).
+    const dir = placeOf(d)
+    if (!text.trim() || !dir) return
+    d.dir = dir
+    d.path = await api.create(dir, d.name ?? deriveName(text), toDisk(text, d.eol))
     d.created = true
     d.saved = text
     if (d === doc) announce()
@@ -140,6 +169,12 @@ async function writeNow(d: Doc, text: string): Promise<void> {
 export async function leave(): Promise<boolean> {
   const d = doc
   if (!d) return true
+  // Words with nowhere to go: ask now rather than lose them.
+  if (needsAPlace(d)) {
+    const dir = await whereToSave()
+    if (!dir) return false
+    d.dir = dir
+  }
   // Keep saving until what's on screen is on disk: you may type while a save is in flight.
   for (let i = 0; i < 3; i++) {
     if (!(await save())) return false
@@ -218,22 +253,19 @@ function announce(): void {
   for (const cb of listeners) cb()
 }
 
-/** Folder for new things: next to the current file if it's in the library, else the library root. */
-export function hereDir(): string {
-  return doc?.path && isInside(doc.path, app.settings.library) ? dirname(doc.path) : app.settings.library
-}
+/**
+ * Where new documents go: next to the current one; with nothing to put it next
+ * to, the only open folder if exactly one is open; otherwise nowhere yet (⌘S
+ * or leaving asks).
+ */
+export const hereDir = (): string | null => (doc ? (doc.path ? dirname(doc.path) : placeOf(doc)) : null)
 
 /** The folder relative links and images in the current document start from. */
-export const docDir = (): string => (doc?.path ? dirname(doc.path) : (doc?.dir ?? app.settings.library))
+export const docDir = hereDir
 
-/** Starts with an empty, unsaved document in the library. */
+/** Starts with an empty document that isn't anywhere yet. */
 export function startEmpty(): void {
-  setDoc(untitled(app.settings.library), '')
-}
-
-/** The library moved: an unsaved document follows it. */
-export function libraryChanged(library: string): void {
-  if (doc && !doc.path) doc.dir = library
+  setDoc(untitled(null), '')
 }
 
 // Switching documents happens one at a time (a double-click can't open a file twice
@@ -283,7 +315,8 @@ export const openNamed = (name: string): Promise<void> =>
     // A link like [[../../x]] must not reach outside the library.
     const parts = name.split('/').filter((p) => p && p !== '.' && p !== '..')
     const base = parts.pop() ?? 'Untitled'
-    const dir = join(hereDir(), ...parts)
+    const here = hereDir()
+    const dir = here ? join(here, ...parts) : null
     if (!(await leave())) return
     pushHistory()
     setDoc(untitled(dir, base), '')
@@ -354,7 +387,9 @@ export function newFolder(dir?: string): void {
   openPrompt({
     placeholder: 'New folder name…',
     submit: async (name) => {
-      const p = await api.mkdir(dir ?? hereDir(), name)
+      const where = dir ?? hereDir()
+      if (!where) return notify('Open a folder first (⇧⌘O)')
+      const p = await api.mkdir(where, name)
       notify(`Created ${basename(p)}/`)
     }
   })
@@ -379,7 +414,7 @@ async function trashNow(target?: string): Promise<void> {
   forget(path)
   if (isCurrent) {
     clearTimeout(saveTimer)
-    setDoc(untitled(isInside(dirname(path), app.settings.library) ? dirname(path) : app.settings.library), '')
+    setDoc(untitled(dirname(path)), '')
   }
   notify(`Moved “${basename(path)}” to Trash`)
 }

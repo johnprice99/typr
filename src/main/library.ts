@@ -1,4 +1,4 @@
-import { constants, existsSync, FSWatcher, mkdirSync, renameSync, statSync, watch, writeFileSync } from 'fs'
+import { constants, existsSync, FSWatcher, renameSync, statSync, watch, writeFileSync } from 'fs'
 import { access, open, readdir, rename, stat, unlink } from 'fs/promises'
 import { basename, dirname, join } from 'path'
 import { isTextPath } from '../shared/files'
@@ -10,9 +10,9 @@ const MAX_DEPTH = 20
 const MAX_OPEN = 32
 
 /**
- * Lists the library: library-relative paths with forward slashes, folders
- * ending in "/". Shows folders with writing in them and empty ones you've just
- * made, but not folders that only hold pictures or other files.
+ * Lists a folder: paths relative to it with forward slashes, subfolders ending
+ * in "/". Shows subfolders with writing in them and empty ones you've just
+ * made, but not ones that only hold pictures or other files.
  */
 export async function scan(root: string, rel = '', depth = 0): Promise<string[]> {
   if (depth > MAX_DEPTH) return []
@@ -54,25 +54,38 @@ async function limited<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-let watcher: FSWatcher | null = null
+const watchers = new Map<string, FSWatcher>()
 let timer: NodeJS.Timeout | null = null
 
-/** Calls onChange (debounced) when files are added, removed or renamed in the library. */
-export function watchLibrary(root: string, onChange: () => void): void {
-  watcher?.close()
-  watcher = null
-  try {
-    // May fail (e.g. the library is on a drive that isn't plugged in); Typr still opens.
-    mkdirSync(root, { recursive: true })
-    watcher = watch(root, { recursive: true }, (event) => {
-      // Saving a document only changes its contents ("change"); the list only
-      // needs refreshing when files appear, disappear or move ("rename").
-      if (event !== 'rename') return
-      if (timer) clearTimeout(timer)
-      timer = setTimeout(onChange, 150)
-    })
-  } catch {
-    watcher = null
+/** Watches each open folder; calls onChange (debounced) when files are added, removed or renamed. */
+export function watchFolders(folders: string[], onChange: () => void): void {
+  for (const [path, w] of watchers) {
+    if (!folders.includes(path)) {
+      w.close()
+      watchers.delete(path)
+    }
+  }
+  for (const path of folders) {
+    if (watchers.has(path)) continue
+    try {
+      const w = watch(path, { recursive: true }, (event) => {
+        // Saving a document only changes its contents ("change"); the list only
+        // needs refreshing when files appear, disappear or move ("rename").
+        if (event !== 'rename') return
+        if (timer) clearTimeout(timer)
+        timer = setTimeout(onChange, 150)
+      })
+      // E.g. the folder was deleted or its drive unplugged: stop watching it, quietly.
+      w.on('error', () => {
+        w.close()
+        if (watchers.get(path) === w) watchers.delete(path)
+        if (timer) clearTimeout(timer)
+        timer = setTimeout(onChange, 150)
+      })
+      watchers.set(path, w)
+    } catch {
+      // The folder may be missing (e.g. on a drive that isn't plugged in); it just shows as empty.
+    }
   }
 }
 

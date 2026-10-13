@@ -9,5 +9,10 @@ if (process.env.TYPR_USER_DATA) app.setPath('userData', process.env.TYPR_USER_DA
 
 export const testing = process.env.TYPR_TEST === '1'
 
+// An unexpected error must never freeze Typr behind Electron's blocking error
+// dialog (and with it any unsaved writing): log it and carry on.
+process.on('uncaughtException', (e) => console.error('Typr: unexpected error', e))
+process.on('unhandledRejection', (e) => console.error('Typr: unhandled rejection', e))
+
 // Test copies run as background apps: no Dock icon, no menu-bar takeover, no focus stealing.
 if (testing) app.setActivationPolicy('accessory')

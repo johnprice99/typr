@@ -1,5 +1,5 @@
 import type { Editor } from '../editor/editor'
-import type { Settings } from '../../../shared/types'
+import type { FolderListing, Settings } from '../../../shared/types'
 
 // State shared across the app modules. `editor` and `settings` are set once at
 // startup (main.ts) before anything else runs.
@@ -9,8 +9,8 @@ export const api = window.api
 export const app = {
   editor: undefined as unknown as Editor,
   settings: undefined as unknown as Settings,
-  /** Library-relative paths; folders end with "/". */
-  files: [] as string[],
+  /** The open folders and what's in them. */
+  folders: [] as FolderListing[],
   version: ''
 }
 

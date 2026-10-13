@@ -3,9 +3,8 @@ export type TextSize = 'small' | 'medium' | 'large'
 export type Theme = 'system' | 'light' | 'dark'
 
 export interface Settings {
-  library: string
-  /** False until the first-run library choice has been made (or skipped). */
-  librarySet: boolean
+  /** The folders open in the sidebar (absolute paths). */
+  folders: string[]
   sidebar: boolean
   focus: FocusMode
   textSize: TextSize
@@ -22,10 +21,16 @@ export interface WindowState {
   bounds?: { x: number; y: number; width: number; height: number }
 }
 
+/** One open folder and what's in it. */
+export interface FolderListing {
+  path: string
+  /** Paths relative to the folder, forward slashes. Subfolders end with "/". */
+  entries: string[]
+}
+
 export interface InitialState {
   settings: Settings
-  /** Library-relative paths, forward slashes. Folders end with "/". */
-  files: string[]
+  folders: FolderListing[]
   /** Absolute paths the OS asked us to open before the window was ready. */
   pendingOpen: string[]
   version: string
@@ -36,11 +41,6 @@ export interface WriteResult {
   path: string
   /** A copy holding another app's changes, if there were any. */
   copy: string | null
-}
-
-export interface LibraryOptions {
-  documents: string
-  icloud: string | null
 }
 
 /** A command sent from the main process (menus) to the renderer. */
@@ -70,10 +70,12 @@ export interface Api {
   reveal(path: string): Promise<void>
   exists(path: string): Promise<boolean>
   openDialog(): Promise<string | null>
-  libraryOptions(): Promise<LibraryOptions>
-  setLibrary(path: string): Promise<void>
+
   /** Shows a folder picker. Resolves true if a folder was chosen. */
-  chooseLibrary(): Promise<boolean>
+  /** Shows the folder chooser and opens the chosen folder in the sidebar. Resolves its path, or null. */
+  openFolder(): Promise<string | null>
+  /** Removes a folder from the sidebar (nothing on disk changes). */
+  closeFolder(path: string): Promise<void>
   setCurrent(path: string | null, title: string): Promise<void>
   /** Adds to File › Open Recent. */
   addRecent(path: string): Promise<void>
@@ -85,7 +87,7 @@ export interface Api {
   pathForFile(file: File): string
   /** Reply to onFlush: whether everything was saved, and the document's title. */
   flushed(saved: boolean, title: string): void
-  onFiles(cb: (files: string[]) => void): void
+  onFolders(cb: (folders: FolderListing[]) => void): void
   onSettings(cb: (settings: Settings) => void): void
   onCommand(cb: (cmd: Command) => void): void
   onOpen(cb: (path: string) => void): void

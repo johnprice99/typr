@@ -5,7 +5,7 @@ import { join } from 'path'
 import { pathToFileURL } from 'url'
 import { isImagePath } from '../shared/files'
 import { refreshFiles, registerIpc, trustPath } from './ipc'
-import { scan, watchLibrary } from './library'
+import { scan, watchFolders } from './library'
 import { followAppearanceInDock } from './dock'
 import { buildMenu } from './menu'
 import { onSettingChange, settings } from './settings'
@@ -31,7 +31,12 @@ setWatchEvents({
     sendToRenderer('file-moved', from, to)
   },
   gone: (path) => sendToRenderer('file-gone', path),
-  candidates: async () => (await scan(settings.library)).filter((f) => !f.endsWith('/')).map((f) => join(settings.library, f))
+  candidates: async () =>
+    (
+      await Promise.all(
+        settings.folders.map(async (folder) => (await scan(folder)).filter((f) => !f.endsWith('/')).map((f) => join(folder, f)))
+      )
+    ).flat()
 })
 
 registerIpc()
@@ -57,9 +62,9 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (!getWindow()) createWindow()
   })
-  // The window first, so a missing library folder can never stop Typr opening.
+  // The window first, so a missing folder can never stop Typr opening.
   if (!getWindow()) createWindow()
-  watchLibrary(settings.library, refreshFiles)
+  watchFolders(settings.folders, refreshFiles)
 })
 
 app.on('before-quit', () => setQuitting(true))

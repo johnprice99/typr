@@ -5,10 +5,10 @@ import { openAbout, openSettings, SIZES, THEMES } from '../ui/panels'
 import { FOCUS, label, set, setFocus } from './appearance'
 import { api, app, notify, errorText } from './context'
 import { pickImage } from './images'
-import { chooseLibrary, quickOpen } from './library'
+import { closeFolder, openFolder, quickOpen } from './library'
 import { followAtCursor } from './navigation'
 import { goToComment, promptComment, resolveAtCursor } from './review'
-import { current, goBack, goForward, newDoc, newFolder, open, rename, trash } from './session'
+import { current, goBack, goForward, newDoc, newFolder, open, rename, saveNow, trash } from './session'
 
 // Every command, by id. Menus send these ids; the palette lists them. Keeping
 // one table means the menu bar and the palette can never disagree.
@@ -46,6 +46,9 @@ export const commands: Record<string, Cmd> = {
       if (p) await open(p)
     }
   },
+  'open-folder': { title: 'Open Folder…', keys: '⇧⌘O', run: openFolder },
+  'close-folder': { title: 'Close Folder…', run: (p) => closeFolder(p) },
+  save: { title: 'Save', keys: '⌘S', run: saveNow },
   'quick-open': { title: 'Go to File…', keys: '⌘P', run: quickOpen },
   rename: { title: 'Rename Document…', keys: '⇧⌘R', run: (p) => rename(p) },
   'toggle-markdown': {
@@ -56,7 +59,15 @@ export const commands: Record<string, Cmd> = {
   },
   'new-folder': { title: 'New Folder…', run: (p) => newFolder(p) },
   trash: { title: 'Move Document to Trash', run: (p) => trash(p) },
-  reveal: { title: 'Show in Finder', run: () => api.reveal(current().path ?? app.settings.library) },
+  reveal: {
+    title: 'Show in Finder',
+    run: () => {
+      const doc = current()
+      const target = doc.path ?? doc.dir ?? app.folders[0]?.path
+      if (target) return api.reveal(target)
+      notify('This document isn’t saved anywhere yet')
+    }
+  },
 
   find: { title: 'Find…', keys: '⌘F', run: () => openFind(app.editor.view, false) },
   replace: { title: 'Find and Replace…', keys: '⇧⌘F', run: () => openFind(app.editor.view, true) },
@@ -78,7 +89,6 @@ export const commands: Record<string, Cmd> = {
     on: () => app.settings.sidebar,
     run: () => set('sidebar', !app.settings.sidebar)
   },
-  'library-choose': { title: 'Library Folder…', run: () => chooseLibrary() },
   'focus-cycle': {
     title: 'Next Focus Mode',
     keys: '⌘D',
@@ -116,7 +126,7 @@ export const commands: Record<string, Cmd> = {
   settings: {
     title: 'Settings…',
     keys: '⌘,',
-    run: () => openSettings(app.settings, { set, changeLibrary: () => chooseLibrary() })
+    run: () => openSettings(app.settings, { set })
   },
   about: { title: 'About Typr', run: () => openAbout(app.version) },
   palette: { title: 'Command Palette', keys: '⇧⌘P', run: showPalette, hidden: true },

@@ -1,14 +1,10 @@
-import '@fontsource/ibm-plex-mono/400.css'
-import '@fontsource/ibm-plex-mono/400-italic.css'
-import '@fontsource/ibm-plex-mono/700.css'
-import '@fontsource/ibm-plex-mono/700-italic.css'
 import './style.css'
 import { commands } from './app/actions'
 import { applySettings } from './app/appearance'
 import { $, api, app, errorText, notify } from './app/context'
 import { insertFiles } from './app/images'
-import { chooseLibrary, drawSidebar } from './app/library'
-import { follow, linkNames } from './app/navigation'
+import { chooseWhere, drawSidebar } from './app/library'
+import { follow } from './app/navigation'
 import { promptComment } from './app/review'
 import * as session from './app/session'
 import { scheduleStats, updateStats } from './app/status'
@@ -24,11 +20,12 @@ app.editor = createEditor($('editor'), {
   onChange: session.scheduleSave,
   onSelection: scheduleStats,
   follow,
-  names: linkNames,
-  imageUrl: (href) => imageSrc(href, session.docDir()),
+  imageUrl: (href) => imageSrc(href, session.docDir() ?? '/'),
   editComment: (c) => promptComment(c),
   insertFiles
 })
+
+session.setWhereToSave(chooseWhere)
 
 session.onDocumentChange(() => {
   $('title').textContent = session.title()
@@ -65,7 +62,7 @@ function run(id: string, path?: string): void {
 async function start(): Promise<void> {
   const init = await api.init()
   app.version = init.version
-  app.files = init.files
+  app.folders = init.folders
   applySettings(init.settings)
   session.startEmpty()
 
@@ -73,8 +70,8 @@ async function start(): Promise<void> {
   onPaletteClose(() => app.editor.view.focus())
   onPanelClose(() => app.editor.view.focus())
   onPaletteError((e) => notify(errorText(e)))
-  api.onFiles((f) => {
-    app.files = f
+  api.onFolders((f) => {
+    app.folders = f
     drawSidebar()
   })
   api.onSettings(applySettings)
@@ -87,6 +84,10 @@ async function start(): Promise<void> {
   api.onFileMoved(session.fileMoved)
   api.onFileGone(session.fileGone)
   api.onFlush(async () => {
+    // A new document with nowhere to go can't be saved without asking, and
+    // quitting shouldn't open a picker: say so, and let the main process ask
+    // "Don't Quit / Quit Anyway" (Don't Quit, then ⌘S, saves it).
+    if (session.needsAPlace()) return api.flushed(false, session.title())
     let saved = false
     try {
       saved = await session.leave()
@@ -96,7 +97,6 @@ async function start(): Promise<void> {
   })
 
   for (const p of init.pendingOpen) await session.open(p)
-  if (!app.settings.librarySet) void chooseLibrary(true)
   testHook.ready = true
 }
 

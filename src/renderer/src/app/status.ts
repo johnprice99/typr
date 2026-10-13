@@ -1,5 +1,6 @@
 import { listComments, stripComments } from '../editor/comments'
 import { $, app } from './context'
+import { needsAPlace } from './session'
 
 // The quiet line at the bottom right: words, reading time and comments.
 // Counting reads the whole document, so it waits for a pause in typing.
@@ -27,6 +28,8 @@ export function updateStats(): void {
     words ? `${mins} min` : '',
     notes ? `${notes} comment${notes === 1 ? '' : 's'}` : ''
   ]
-  // An empty page stays empty; the only hint lives down here, out of the way.
-  $('stats').textContent = state.doc.length === 0 ? '⇧⌘P for commands' : parts.filter(Boolean).join(' · ')
+  // An empty page stays empty; the only hints live down here, out of the way.
+  if (state.doc.length === 0) $('stats').textContent = '⇧⌘P for commands'
+  else if (needsAPlace()) $('stats').textContent = [...parts, 'Not saved yet · ⌘S to choose where'].filter(Boolean).join(' · ')
+  else $('stats').textContent = parts.filter(Boolean).join(' · ')
 }

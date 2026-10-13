@@ -12,9 +12,10 @@ const png = (): Buffer =>
 test.describe('the formatted view', () => {
   test('hides Markdown away from the cursor and shows it where you edit', async ({ launch }) => {
     const t = await launch()
-    await t.setText('# The Storm\n\nIt was a **dark** night. See [the map](https://example.com) and [[Mara|our hero]].\n\nEnd.')
+    await t.setText('# The Storm\n\nIt was a **dark** night. See [the map](https://example.com) and [[Mara]].\n\nEnd.')
     expect(await t.lineShown(1)).toBe('The Storm')
-    expect(await t.lineShown(3)).toBe('It was a dark night. See the map and our hero.')
+    // [[double brackets]] and [single ones] are just text.
+    expect(await t.lineShown(3)).toBe('It was a dark night. See the map and [[Mara]].')
     await t.select(3)
     expect(await t.lineShown(1)).toBe('# The Storm')
     const doc = await t.text()

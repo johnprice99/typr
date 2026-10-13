@@ -1,7 +1,6 @@
 import iconLight from '../../../../resources/icon-light.png'
 import iconDark from '../../../../resources/icon-dark.png'
 import type { Settings, TextSize, Theme } from '../../../shared/types'
-import { tildify } from '../../../shared/paths'
 
 // Settings and About: small centred panels in the same style as the palette.
 // Everything works from the keyboard: Tab between rows, arrows to choose, Esc to close.
@@ -87,7 +86,6 @@ function choice<T extends string>(options: { id: T; name: string }[], current: T
 
 export interface SettingsHandlers {
   set: <K extends keyof Settings>(key: K, value: Settings[K]) => void
-  changeLibrary: () => void
 }
 
 export function openSettings(settings: Settings, h: SettingsHandlers): void {
@@ -100,11 +98,6 @@ export function openSettings(settings: Settings, h: SettingsHandlers): void {
       r.append(el('div', 'setting-label', label), control)
       return r
     }
-    const library = el('div', 'library')
-    library.append(
-      el('span', 'library-path', tildify(s.library)),
-      Object.assign(el('button', 'link', 'Change…'), { onclick: h.changeLibrary })
-    )
     box.replaceChildren(
       el('h2', undefined, 'Settings'),
       row(
@@ -114,8 +107,7 @@ export function openSettings(settings: Settings, h: SettingsHandlers): void {
       row(
         'Text size',
         choice(SIZES, s.textSize, (v) => h.set('textSize', v))
-      ),
-      row('Library', library)
+      )
     )
     const rows = box.querySelectorAll<HTMLElement>('.setting')
     const target = rows[Math.max(0, focusedRow)]

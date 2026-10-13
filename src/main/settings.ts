@@ -8,7 +8,6 @@ import { writeAtomicSync } from './library'
 
 // Settings live in one JSON file in the app's user-data folder.
 
-export const documentsLibrary = (): string => join(app.getPath('documents'), 'Typr')
 const settingsPath = (): string => join(app.getPath('userData'), 'settings.json')
 
 function load(): Settings {
@@ -19,7 +18,7 @@ function load(): Settings {
   } catch {
     // First launch, or an unreadable file: start from defaults.
   }
-  return normalizeSettings(saved, documentsLibrary())
+  return normalizeSettings(saved)
 }
 
 export const settings: Settings = load()

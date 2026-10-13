@@ -5,14 +5,13 @@ import { deleteMarkupBackward, markdown, markdownLanguage } from '@codemirror/la
 import { enter, insertLink, toggleWrap, URL_RE } from './commands'
 import { syntaxHighlighting } from '@codemirror/language'
 import { searchKeymap } from '@codemirror/search'
-import { completionKeymap } from '@codemirror/autocomplete'
 import { markdownHighlight, refreshMarks } from './markdown'
 import { layout } from './layout'
 import { Comment, commentsField } from './comments'
 import { insertTable, tableKeys } from './tables'
 import { focusMode } from './focus'
 import { findBar } from './find'
-import { Link, links } from './links'
+import { links } from './links'
 import type { FocusMode } from '../../../shared/types'
 
 // Keys the app uses itself (CodeMirror would otherwise swallow them), plus
@@ -35,8 +34,8 @@ const pasteLinks = EditorView.domEventHandlers({
 export interface EditorOptions {
   onChange: () => void
   onSelection: () => void
-  follow: (link: Link) => void
-  names: () => string[]
+  /** ⌘-click or ⌘↩ on a link. */
+  follow: (url: string) => void
   imageUrl: (href: string) => string
   editComment: (c: Comment) => void
   /** Files dropped or pasted onto the page. Return true if handled. */
@@ -85,7 +84,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): Editor {
     commentsField,
     layoutC.of(layoutExt),
     findBar,
-    links({ follow: opts.follow, names: opts.names }),
+    links(opts.follow),
     pasteLinks,
     EditorView.domEventHandlers({
       drop(e, view) {
@@ -106,7 +105,6 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): Editor {
     keymap.of([
       { key: 'Mod-b', run: toggleWrap('**') },
       { key: 'Mod-i', run: toggleWrap('_') },
-      ...completionKeymap,
       ...tableKeys,
       ...free(searchKeymap),
       ...free(defaultKeymap),

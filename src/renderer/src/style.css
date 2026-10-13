@@ -18,7 +18,9 @@
   --scale: 1;
   --md-bullet-w: 1.2em;
   --md-check-w: 1.6em;
-  --editor-font: 'IBM Plex Mono', ui-monospace, monospace;
+  /* The Mac's own fonts throughout. Electron's engine can't reach SF Mono (only
+     Safari supports ui-monospace), so the built-in monospace font is Menlo. */
+  --editor-font: ui-monospace, Menlo, monospace;
   /* The formatted editor's readable sans-serif look. */
   --doc-font: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
   --doc-size: clamp(16px, 0.35vw + 12px, 19px);
@@ -173,17 +175,52 @@ body {
 .sidebar-open #sidebar {
   transform: none;
 }
+/* Each open folder is a section with a header you can click to collapse. */
+.sidebar-folder + .sidebar-folder {
+  margin-top: 14px;
+}
 .sidebar-header {
-  padding: 0 16px 10px;
+  margin: 0 6px 4px;
+  padding: 3px 12px 3px 0;
+  border-radius: 5px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+.sidebar-header:hover {
+  background: var(--line);
+}
+.sidebar-header::before {
+  content: '▾';
+  display: inline-block;
+  width: 14px;
+  transition: transform 0.15s;
+}
+.sidebar-header.collapsed::before {
+  transform: rotate(-90deg);
+}
+.sidebar-note,
+.sidebar-empty {
+  margin: 0;
+  padding: 2px 16px 0 32px;
+  color: var(--faint);
 }
 .sidebar-empty {
-  padding: 0 16px;
-  color: var(--faint);
+  padding: 4px 16px;
+  line-height: 1.6;
+}
+.sidebar-empty button.link {
+  padding: 0;
+  border: 0;
+  font: inherit;
+  color: var(--accent);
+  background: none;
 }
 #sidebar ul {
   list-style: none;
@@ -277,7 +314,7 @@ body {
   transition: color 0.15s;
 }
 /* Links in dimmed text stay findable with a soft accent underline. */
-#editor :is(.cm-dim .md-link, .md-link .cm-dim, .cm-dim .md-wikilink, .md-wikilink .cm-dim, .cm-dim .md-url, .md-url .cm-dim) {
+#editor :is(.cm-dim .md-link, .md-link .cm-dim, .cm-dim .md-url, .md-url .cm-dim) {
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, var(--accent) 50%, transparent);
   text-decoration-thickness: 1.5px;
@@ -331,10 +368,6 @@ body {
 .md-quote {
   color: var(--quote);
 }
-.md-wikilink {
-  color: var(--accent);
-}
-.cmd .md-wikilink,
 .cmd .md-link,
 .cmd .md-url {
   cursor: pointer;
@@ -440,8 +473,7 @@ body {
   border-radius: 4px;
   background: var(--panel);
 }
-.md-table-widget .md-link,
-.md-table-widget .md-wikilink {
+.md-table-widget .md-link {
   color: var(--accent);
 }
 #editor .cm-live .md-table {
@@ -493,6 +525,26 @@ body {
   width: 100%;
   vertical-align: middle;
   border-top: 1px solid var(--line);
+}
+.md-remote-img {
+  display: block;
+  margin: 0.4em 0;
+  padding: 0.9em 1.2em;
+  border: 1px dashed var(--faint);
+  border-radius: 6px;
+  font: inherit;
+  font-family: var(--ui);
+  font-size: 0.8em;
+  color: var(--faint);
+  background: transparent;
+  cursor: pointer;
+}
+.md-remote-img:hover {
+  color: var(--fg);
+  border-color: var(--fg);
+}
+.md-img-wrap {
+  display: block;
 }
 .md-img {
   display: block;
@@ -763,17 +815,6 @@ body {
 .panel button.link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
-}
-.library {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-.library-path {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .panel button.link {
   flex: none;

@@ -42,8 +42,10 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
       submenu: [
         cmd('New', 'new', 'CmdOrCtrl+N'),
         cmd('Open…', 'open', 'CmdOrCtrl+O'),
+        cmd('Open Folder…', 'open-folder', 'CmdOrCtrl+Shift+O'),
         { role: 'recentDocuments', submenu: [{ role: 'clearRecentDocuments' }] },
         sep,
+        cmd('Save', 'save', 'CmdOrCtrl+S'),
         cmd('Rename…', 'rename', 'CmdOrCtrl+Shift+R'),
         cmd('Show in Finder', 'reveal'),
         cmd('Move to Trash', 'trash'),

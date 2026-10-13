@@ -1,9 +1,9 @@
 import { nativeTheme } from 'electron'
 import { normalizeSettings } from '../shared/settings'
 import { refreshFiles, resetSession } from './ipc'
-import { watchLibrary } from './library'
+import { watchFolders } from './library'
 import { buildMenu } from './menu'
-import { documentsLibrary, saveSettings, settings } from './settings'
+import { saveSettings, settings } from './settings'
 import { watchCurrent } from './watcher'
 import { getWindow, send } from './window'
 
@@ -13,11 +13,11 @@ import { getWindow, send } from './window'
 export function installTestHooks(): void {
   Object.assign(globalThis, {
     __typrReset: async (raw: Record<string, unknown>): Promise<void> => {
-      Object.assign(settings, normalizeSettings(raw, documentsLibrary()))
+      Object.assign(settings, normalizeSettings(raw))
       saveSettings()
       resetSession()
       watchCurrent(null)
-      watchLibrary(settings.library, refreshFiles)
+      watchFolders(settings.folders, refreshFiles)
       nativeTheme.themeSource = settings.theme
       buildMenu(settings, send)
       const win = getWindow()

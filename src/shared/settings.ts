@@ -10,7 +10,7 @@ const oneOf = <T>(value: unknown, allowed: T[], fallback: T): T => (allowed.incl
 const bool = (value: unknown, fallback: boolean): boolean => (typeof value === 'boolean' ? value : fallback)
 
 /** Turns whatever is on disk (including older formats) into valid settings. */
-export function normalizeSettings(saved: Record<string, unknown>, defaultLibrary: string): Settings {
+export function normalizeSettings(saved: Record<string, unknown>): Settings {
   // Older versions: focus was on/off plus a scope, and text size was a number.
   let focus = saved.focus
   if (typeof focus === 'boolean') focus = focus ? (saved.focusScope ?? 'paragraph') : 'paragraph'
@@ -24,9 +24,11 @@ export function normalizeSettings(saved: Record<string, unknown>, defaultLibrary
     b && ['x', 'y', 'width', 'height'].every((k) => typeof b[k] === 'number')
       ? { x: b.x as number, y: b.y as number, width: b.width as number, height: b.height as number }
       : undefined
+  // Older versions had a single "library"; it becomes the first open folder.
+  const listed = Array.isArray(saved.folders) ? saved.folders : saved.librarySet && saved.library ? [saved.library] : []
+  const folders = [...new Set(listed.filter((f): f is string => typeof f === 'string' && f.startsWith('/')))]
   return {
-    library: typeof saved.library === 'string' && saved.library ? saved.library : defaultLibrary,
-    librarySet: bool(saved.librarySet, false),
+    folders,
     sidebar: bool(saved.sidebar, false),
     focus: oneOf(focus, FOCUS_MODES, 'paragraph'),
     textSize: oneOf(textSize, SIZES, 'medium'),

@@ -15,10 +15,6 @@ function inline(md: string): string {
     .replace(/\*\*([^*]+)\*\*|__([^_]+)__/g, (_m, a, b) => `<strong>${a ?? b}</strong>`)
     .replace(/\*([^*]+)\*|_([^_]+)_/g, (_m, a, b) => `<em>${a ?? b}</em>`)
     .replace(/~~([^~]+)~~/g, '<s>$1</s>')
-    .replace(
-      /\[\[([^\]|]+)\|([^\]]+)\]\]|\[\[([^\]]+)\]\]/g,
-      (_m, _t, label, plain) => `<span class="md-wikilink">${label ?? plain}</span>`
-    )
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '<span class="md-link">$1</span>')
 }
 

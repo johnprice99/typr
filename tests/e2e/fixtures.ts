@@ -4,7 +4,7 @@ import { tmpdir } from 'os'
 import { dirname, join, resolve } from 'path'
 
 // The real, built app is launched once per run (invisible, no Dock icon) and
-// reset before each test with a throwaway library and fresh settings.
+// reset before each test with a throwaway folder (open in the sidebar) and fresh settings.
 // Nothing touches your documents, settings or clipboard.
 
 const ROOT = resolve(__dirname, '../..')
@@ -12,7 +12,7 @@ const ROOT = resolve(__dirname, '../..')
 export interface LaunchOptions {
   /** Settings to start with (merged over test defaults). */
   settings?: Record<string, unknown>
-  /** Files to create in the library: relative path → contents. */
+  /** Files to create in the test's folder: relative path → contents. */
   files?: Record<string, string | Buffer>
 }
 
@@ -21,9 +21,9 @@ export interface Typr {
   page: Page
   /** Errors logged by the page. */
   errors: string[]
-  /** The temporary library folder. */
+  /** The test's folder, open in the sidebar. */
   lib: string
-  /** The temporary folder outside the library (for "elsewhere" files). */
+  /** A temporary folder that isn't open (for "elsewhere" files). */
   outside: string
   userData: string
   /** Runs a command by id, as a menu item or the palette would. */
@@ -42,7 +42,7 @@ export interface Typr {
   lineShown(line: number): Promise<string>
   title(): Promise<string>
   toast(): Promise<string>
-  /** Files in a library folder, sorted. */
+  /** Files in the test's folder (or a subfolder), sorted. */
   ls(rel?: string): string[]
   read(rel: string): string
   /** The settings file as saved. */
@@ -63,13 +63,16 @@ async function start(): Promise<{ running: Running; base: string }> {
   const userData = join(base, 'user-data')
   mkdirSync(join(base, 'library'), { recursive: true })
   mkdirSync(userData, { recursive: true })
-  writeFileSync(join(userData, 'settings.json'), JSON.stringify({ library: join(base, 'library'), librarySet: true }))
+  writeFileSync(join(userData, 'settings.json'), JSON.stringify({ folders: [join(base, 'library')] }))
   const app = await electron.launch({
     args: ['.'],
     cwd: ROOT,
     env: { ...process.env, TYPR_TEST: '1', TYPR_USER_DATA: userData }
   })
+  // TYPR_DEBUG=1 shows the app's own output while the tests run.
+  if (process.env.TYPR_DEBUG) app.process().stderr?.on('data', (d) => process.stderr.write(`[typr] ${d}`))
   const page = await app.firstWindow()
+  if (process.env.TYPR_DEBUG) page.on('console', (m) => process.stderr.write(`[page ${m.type()}] ${m.text()}\n`))
   // The window is invisible and never focused, so tell the page it has focus.
   const cdp = await page.context().newCDPSession(page)
   await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
@@ -93,8 +96,7 @@ async function reset({ app, page, errors, userData }: Running, opts: LaunchOptio
     writeFileSync(p, content)
   }
   const settings = {
-    library: lib,
-    librarySet: true,
+    folders: [lib],
     focus: 'off',
     theme: 'light',
     window: { maximized: false, bounds: { x: 60, y: 40, width: 1200, height: 900 } },

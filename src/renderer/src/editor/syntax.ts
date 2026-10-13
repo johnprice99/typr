@@ -13,6 +13,3 @@ export function inCode(state: EditorState, pos: number, side: -1 | 1 = 1): boole
   }
   return false
 }
-
-/** [[wikilinks]], optionally [[target|label]]. Not part of the Markdown grammar, so found by pattern. */
-export const WIKILINK = /\[\[([^[\]\n]+?)\]\]/g
