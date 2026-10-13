@@ -1,14 +1,14 @@
 import { redo, undo } from '@codemirror/commands'
 import { openFind } from '../editor/find'
 import { openList, PaletteItem } from '../ui/palette'
-import { openAbout, openSettings, SIZES, THEMES } from '../ui/panels'
-import { FOCUS, label, set, setFocus } from './appearance'
+import { openAbout, openSettings, THEMES } from '../ui/panels'
+import { FOCUS, label, set, setFocus, stepText } from './appearance'
 import { api, app, notify, errorText } from './context'
 import { pickImage } from './images'
 import { closeFolder, openFolder, quickOpen } from './library'
 import { followAtCursor } from './navigation'
 import { goToComment, promptComment, resolveAtCursor } from './review'
-import { current, goBack, goForward, newDoc, newFolder, open, rename, saveNow, trash } from './session'
+import { closeDoc, current, goBack, goForward, newDoc, newFolder, open, rename, saveNow, trash } from './session'
 
 // Every command, by id. Menus send these ids; the palette lists them. Keeping
 // one table means the menu bar and the palette can never disagree.
@@ -49,6 +49,7 @@ export const commands: Record<string, Cmd> = {
   'open-folder': { title: 'Open Folder…', keys: '⇧⌘O', run: openFolder },
   'close-folder': { title: 'Close Folder…', run: (p) => closeFolder(p) },
   save: { title: 'Save', keys: '⌘S', run: saveNow },
+  'close-doc': { title: 'Close Document', keys: '⌘W', run: closeDoc },
   'quick-open': { title: 'Go to File…', keys: '⌘P', run: quickOpen },
   rename: { title: 'Rename Document…', keys: '⇧⌘R', run: (p) => rename(p) },
   'toggle-markdown': {
@@ -102,13 +103,9 @@ export const commands: Record<string, Cmd> = {
     (id) => app.settings.focus === id,
     (id) => setFocus(id)
   ),
-  ...choices(
-    'size',
-    'Text Size',
-    SIZES,
-    (id) => app.settings.textSize === id,
-    (id) => set('textSize', id)
-  ),
+  'text-bigger': { title: 'Bigger Text', keys: '⌘+', run: () => stepText(1) },
+  'text-smaller': { title: 'Smaller Text', keys: '⌘−', run: () => stepText(-1) },
+  'text-reset': { title: 'Actual Size', keys: '⌘0', run: () => stepText(0) },
   ...choices(
     'theme',
     'Appearance',
@@ -126,7 +123,7 @@ export const commands: Record<string, Cmd> = {
   settings: {
     title: 'Settings…',
     keys: '⌘,',
-    run: () => openSettings(app.settings, { set })
+    run: () => openSettings(app.settings, { set, step: stepText })
   },
   about: { title: 'About Typr', run: () => openAbout(app.version) },
   palette: { title: 'Command Palette', keys: '⇧⌘P', run: showPalette, hidden: true },

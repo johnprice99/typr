@@ -74,6 +74,7 @@ test.describe('app chrome', () => {
     const t = await launch()
     await t.command('settings')
     await expect(t.page.locator('.setting-label')).toHaveText(['Appearance', 'Text size'])
+    await expect(t.page.locator('.stepper-value')).toHaveText('100%')
     await t.page.keyboard.press('ArrowRight') // Appearance: Light → Dark
     await expect(t.page.locator('.segmented [aria-checked=true]').first()).toHaveText('Dark')
     await expect.poll(() => t.savedSettings().theme).toBe('dark')

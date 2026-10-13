@@ -3,6 +3,7 @@ import { Decoration, DecorationSet, EditorView } from '@codemirror/view'
 import { HighlightStyle } from '@codemirror/language'
 import { tags as t } from '@lezer/highlight'
 import { inCode } from './syntax'
+import { frontmatterRange } from './frontmatter'
 
 // Colours live in CSS so light/dark mode is handled in one place.
 export const markdownHighlight = HighlightStyle.define([
@@ -124,12 +125,13 @@ export const px = (n: number): string => `${Math.round(n * 100) / 100}px`
 export function buildRaw(view: EditorView): DecorationSet {
   const b = new RangeSetBuilder<Decoration>()
   const { state } = view
+  const front = frontmatterRange(state)
   for (const { from, to } of view.visibleRanges) {
     for (let pos = from; pos <= to;) {
       const line = state.doc.lineAt(pos)
       const text = line.text
       let m: RegExpMatchArray | null
-      if (text && !inCode(state, line.from)) {
+      if (text && !inCode(state, line.from) && !(front && line.from <= front.to)) {
         if ((m = text.match(HEADING))) {
           const cls = `md-h md-h${m[1].length}`
           const w = measure(view, cls, m[0])

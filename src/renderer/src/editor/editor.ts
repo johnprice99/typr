@@ -7,6 +7,7 @@ import { syntaxHighlighting } from '@codemirror/language'
 import { searchKeymap } from '@codemirror/search'
 import { markdownHighlight, refreshMarks } from './markdown'
 import { layout } from './layout'
+import { frontmatterLines, frontmatterSyntax } from './frontmatter'
 import { Comment, commentsField } from './comments'
 import { insertTable, tableKeys } from './tables'
 import { focusMode } from './focus'
@@ -73,7 +74,8 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): Editor {
     EditorView.lineWrapping,
     EditorState.tabSize.of(4),
     EditorView.contentAttributes.of({ spellcheck: 'true', autocorrect: 'on', autocapitalize: 'on' }),
-    markdown({ base: markdownLanguage, addKeymap: false }),
+    markdown({ base: markdownLanguage, addKeymap: false, extensions: [frontmatterSyntax] }),
+    frontmatterLines,
     Prec.high(
       keymap.of([
         { key: 'Enter', run: enter },

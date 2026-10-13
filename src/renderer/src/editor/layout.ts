@@ -5,6 +5,7 @@ import { buildRaw, fontKey, refresh, refreshMarks } from './markdown'
 import { buildLive, LiveOptions } from './live'
 import { CommentActions, comments } from './comments'
 import { renderedTables } from './tables'
+import { propertiesBox } from './frontmatter'
 
 /** How the document is laid out: formatted (live preview) or as raw Markdown. */
 export function layout(live: LiveOptions | null, commentActions: CommentActions): Extension {
@@ -12,7 +13,7 @@ export function layout(live: LiveOptions | null, commentActions: CommentActions)
   return [
     EditorView.editorAttributes.of({ class: live ? 'cm-live' : 'cm-raw' }),
     comments(live !== null, commentActions),
-    live ? renderedTables : [],
+    live ? [renderedTables, propertiesBox] : [],
     ViewPlugin.fromClass(
       class {
         decorations: DecorationSet

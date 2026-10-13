@@ -8,7 +8,7 @@ type Range = { from: number; to: number }
 
 // The smallest Markdown blocks: a heading, a paragraph (including one inside a
 // list item or quote), a code block, a table. Each is focused on its own.
-const BLOCK = /^(Paragraph|ATXHeading\d|SetextHeading\d|FencedCode|CodeBlock|Table|HTMLBlock|HorizontalRule)$/
+const BLOCK = /^(Paragraph|ATXHeading\d|SetextHeading\d|FencedCode|CodeBlock|Table|HTMLBlock|HorizontalRule|Frontmatter)$/
 
 function byBlankLines(state: EditorState, pos: number): Range {
   const doc = state.doc

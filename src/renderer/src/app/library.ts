@@ -2,7 +2,7 @@ import { basename, dirname, isInside, join, relativeTo, stem, tildify } from '..
 import { openList } from '../ui/palette'
 import { renderSidebar } from '../ui/sidebar'
 import { $, api, app, notify } from './context'
-import { current, open, openNamed, recents } from './session'
+import { closeDoc, current, open, openNamed, recents } from './session'
 
 // Open folders: the sidebar, opening and closing folders, Go to File, and
 // asking where a new document should go.
@@ -16,15 +16,20 @@ export async function openFolder(): Promise<string | null> {
   return path
 }
 
-/** Closes a folder (asking which, if there are several). Nothing on disk changes. */
+/**
+ * Closes a folder (asking which, if there are several). If the open document is
+ * in it, that's closed too (saved first). Nothing on disk changes.
+ */
 export function closeFolder(path?: string): void {
-  const close = (p: string): void => {
-    void api.closeFolder(p)
+  const close = async (p: string): Promise<void> => {
+    const doc = current().path
+    if (doc && isInside(doc, p) && !(await closeDoc())) return
+    await api.closeFolder(p)
     notify(`Closed “${basename(p)}”`)
   }
-  if (path) return close(path)
+  if (path) return void close(path)
   if (!app.folders.length) return notify('No folders are open')
-  if (app.folders.length === 1) return close(app.folders[0].path)
+  if (app.folders.length === 1) return void close(app.folders[0].path)
   openList({
     placeholder: 'Close which folder?',
     items: app.folders.map((f) => ({ label: basename(f.path), detail: tildify(f.path), run: () => close(f.path) }))

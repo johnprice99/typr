@@ -293,6 +293,18 @@ export const newDoc = (dir?: string): Promise<void> =>
 
 export const open = (path: string): Promise<void> => navigate(() => openNow(path, true))
 
+/**
+ * Closes the document (saving it first), leaving an empty page; ⌘[ reopens it.
+ * Resolves false if it couldn't be saved, in which case it stays open.
+ */
+export const closeDoc = (): Promise<boolean> =>
+  navigate(async () => {
+    if (!(await leave())) return false
+    pushHistory()
+    setDoc(untitled(null), '')
+    return true
+  })
+
 async function openNow(path: string, record: boolean): Promise<void> {
   if (doc?.path === path) return app.editor.view.focus()
   let raw: string

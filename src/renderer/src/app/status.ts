@@ -1,4 +1,5 @@
 import { listComments, stripComments } from '../editor/comments'
+import { frontmatterRange } from '../editor/frontmatter'
 import { $, app } from './context'
 import { needsAPlace } from './session'
 
@@ -19,8 +20,12 @@ export function scheduleStats(): void {
 export function updateStats(): void {
   const { state } = app.editor.view
   const sel = state.selection.main
-  const text = stripComments(sel.empty ? state.doc.toString() : state.sliceDoc(sel.from, sel.to))
-  const words = text.match(/[\p{L}\p{N}'’-]+/gu)?.length ?? 0
+  // Count the writing, not the front matter or comment notes.
+  const front = frontmatterRange(state)
+  const start = sel.empty ? (front ? front.to : 0) : sel.from
+  const text = stripComments(state.sliceDoc(start, sel.empty ? state.doc.length : sel.to))
+  // A word has at least one letter or digit (so "---" and " - " don't count).
+  const words = text.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0
   const mins = Math.max(1, Math.round(words / 230))
   const notes = listComments(state).length
   const parts = [

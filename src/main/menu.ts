@@ -50,7 +50,8 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
         cmd('Show in Finder', 'reveal'),
         cmd('Move to Trash', 'trash'),
         sep,
-        { role: 'close' }
+        cmd('Close Document', 'close-doc', 'CmdOrCtrl+W'),
+        { role: 'close', label: 'Close Window', accelerator: 'CmdOrCtrl+Shift+W' }
       ]
     },
     {
@@ -81,6 +82,11 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
       submenu: [
         cmd('Command Palette…', 'palette', 'CmdOrCtrl+Shift+P'),
         check('Show Markdown', 'toggle-markdown', settings.showMarkdown, 'CmdOrCtrl+E'),
+        sep,
+        cmd('Bigger Text', 'text-bigger', 'CmdOrCtrl+='),
+        { ...cmd('Bigger Text', 'text-bigger', 'CmdOrCtrl+Plus'), visible: false, acceleratorWorksWhenHidden: true },
+        cmd('Smaller Text', 'text-smaller', 'CmdOrCtrl+-'),
+        cmd('Actual Size', 'text-reset', 'CmdOrCtrl+0'),
         sep,
         check('Library', 'toggle-sidebar', settings.sidebar, 'CmdOrCtrl+\\'),
         {

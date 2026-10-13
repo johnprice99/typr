@@ -1,5 +1,4 @@
 export type FocusMode = 'off' | 'paragraph' | 'sentence'
-export type TextSize = 'small' | 'medium' | 'large'
 export type Theme = 'system' | 'light' | 'dark'
 
 export interface Settings {
@@ -7,7 +6,8 @@ export interface Settings {
   folders: string[]
   sidebar: boolean
   focus: FocusMode
-  textSize: TextSize
+  /** Text size, as a multiple of the normal size (one of TEXT_SCALES). */
+  textScale: number
   /** Show raw Markdown instead of the formatted view. */
   showMarkdown: boolean
   theme: Theme

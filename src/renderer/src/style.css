@@ -47,13 +47,6 @@
   }
 }
 
-body[data-size='small'] {
-  --scale: 0.88;
-}
-body[data-size='large'] {
-  --scale: 1.15;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -196,14 +189,28 @@ body {
 .sidebar-header:hover {
   background: var(--line);
 }
-.sidebar-header::before {
-  content: '▾';
+/* A thin chevron that turns when a folder is collapsed. */
+.sidebar-header::before,
+#sidebar .folder::before {
+  content: '';
   display: inline-block;
-  width: 14px;
-  transition: transform 0.15s;
+  width: 10px;
+  height: 10px;
+  margin: 0 5px 0 1px;
+  vertical-align: -1px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2.5 3.75 5 6.25 7.5 3.75' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  opacity: 0.55;
+  transition: transform 0.15s ease;
 }
-.sidebar-header.collapsed::before {
+.sidebar-header.collapsed::before,
+#sidebar .folder.collapsed::before {
   transform: rotate(-90deg);
+}
+.sidebar-header:hover::before,
+#sidebar .folder:hover::before {
+  opacity: 0.9;
 }
 .sidebar-note,
 .sidebar-empty {
@@ -247,18 +254,8 @@ body {
 #sidebar .row.current {
   background: var(--sel);
 }
-#sidebar .folder::before {
-  content: '▾';
-  display: inline-block;
-  width: 14px;
-  color: var(--faint);
-  transition: transform 0.15s;
-}
-#sidebar .folder.collapsed::before {
-  transform: rotate(-90deg);
-}
 #sidebar .file {
-  padding-left: 14px;
+  padding-left: 16px;
 }
 
 /* ---------- editor ---------- */
@@ -281,7 +278,8 @@ body {
 }
 #editor .cm-scroller {
   font-family: var(--editor-font);
-  font-size: calc(var(--scale) * clamp(16px, 0.55vw + 11px, 21px));
+  /* One base size for both views (monospace looks bigger, so it's set a little smaller). */
+  font-size: calc(var(--scale) * var(--doc-size) * 0.9);
   line-height: 1.75;
   padding: 0 7ch;
 }
@@ -542,6 +540,46 @@ body {
 .md-remote-img:hover {
   color: var(--fg);
   border-color: var(--fg);
+}
+/* Front matter: a quiet Properties box; click it to edit the text. */
+.md-properties {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35em 1.2em;
+  margin: 0.2em 0 1.2em;
+  padding: 0.8em 1em;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: var(--ui);
+  font-size: 0.78em;
+  line-height: 1.45;
+  color: var(--quote);
+  cursor: text;
+}
+.md-properties:hover {
+  border-color: var(--faint);
+}
+.md-prop-key {
+  color: var(--faint);
+}
+.md-prop-value {
+  overflow-wrap: anywhere;
+}
+.md-prop-raw {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-family: var(--editor-font);
+  white-space: pre-wrap;
+}
+#editor .md-frontmatter {
+  font-family: var(--editor-font);
+  font-size: 0.8em;
+  line-height: 1.5;
+  color: var(--faint);
+}
+#editor .md-frontmatter * {
+  color: inherit;
+  font-weight: normal;
 }
 .md-img-wrap {
   display: block;
@@ -806,6 +844,37 @@ body {
   background: transparent;
   white-space: nowrap;
   cursor: default;
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--line);
+}
+.stepper button {
+  width: 30px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--fg);
+  background: transparent;
+}
+.stepper button:hover {
+  background: var(--bg);
+}
+.stepper button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.stepper-value {
+  min-width: 52px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 .segmented button[aria-checked='true'] {
   background: var(--bg);

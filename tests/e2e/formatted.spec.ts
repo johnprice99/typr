@@ -197,3 +197,61 @@ test.describe('find after editing', () => {
     expect(t.errors).toEqual([])
   })
 })
+
+test.describe('front matter, text size and closing', () => {
+  const STORY =
+    '---\ntitle: The Beast of Briarfen\norder: 1\nsummary: Livestock are dying on the moors.\n---\n\n# Chapter 1\n\nThe village sat low against the moor.\n\n---\n\n# Chapter 2\n\nEnd.'
+
+  test('front matter shows as a Properties box; clicking it edits the text', async ({ launch }) => {
+    const t = await launch({ files: { 'Beast.md': STORY } })
+    await t.open(join(t.lib, 'Beast.md'))
+    await expect(t.page.locator('#title')).toHaveText('Beast')
+    await t.select((await t.text()).length)
+    await expect(t.page.locator('.md-prop-key')).toHaveText(['title', 'order', 'summary'])
+    await expect(t.page.locator('.md-prop-value').first()).toHaveText('The Beast of Briarfen')
+    // Nothing in it is a heading any more, and its words aren't counted.
+    await expect(t.page.locator('.md-h2')).toHaveCount(0)
+    // "Chapter 1 The village sat low against the moor Chapter 2 End" (not "---").
+    await expect(t.page.locator('#stats')).toContainText('12 words')
+    await t.page.locator('.md-properties').dispatchEvent('mousedown')
+    await expect(t.page.locator('.md-properties')).toHaveCount(0)
+    await expect(t.page.locator('.md-frontmatter').first()).toBeVisible()
+    await t.page.keyboard.press('End')
+    await t.page.keyboard.insertText(' (draft)')
+    expect((await t.text()).split('\n')[1]).toBe('title: The Beast of Briarfen (draft)')
+  })
+
+  test('⌘+ and ⌘− step the text size for both views, ⌘0 resets', async ({ launch }) => {
+    const t = await launch()
+    await t.setText('Some words.')
+    const size = (): Promise<number> =>
+      t.page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.cm-scroller')!).fontSize))
+    const normal = await size()
+    await t.command('text-bigger')
+    await expect(t.page.locator('#toast')).toHaveText('Text 110%')
+    expect(await size()).toBeGreaterThan(normal)
+    await t.command('text-smaller')
+    await t.command('text-smaller')
+    await expect(t.page.locator('#toast')).toHaveText('Text 90%')
+    await t.command('toggle-markdown')
+    const mono = await size()
+    await t.command('text-reset')
+    expect(await size()).toBeGreaterThan(mono)
+    await expect.poll(() => t.savedSettings().textScale).toBe(1)
+  })
+
+  test('Close Document saves and closes; closing its folder closes it too', async ({ launch }) => {
+    const t = await launch({ files: { 'Open.md': 'hello' } })
+    await t.open(join(t.lib, 'Open.md'))
+    await expect(t.page.locator('#title')).toHaveText('Open')
+    await t.setText('hello there')
+    await t.command('close-doc')
+    await expect(t.page.locator('#title')).toHaveText('Untitled')
+    expect(t.read('Open.md')).toBe('hello there')
+    await t.command('back')
+    await expect(t.page.locator('#title')).toHaveText('Open')
+    await t.command('close-folder', t.lib)
+    await expect(t.page.locator('#title')).toHaveText('Untitled')
+    await expect.poll(() => t.savedSettings().folders).toEqual([])
+  })
+})

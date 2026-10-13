@@ -1,8 +1,19 @@
-import type { FocusMode, Settings, TextSize, Theme } from './types'
+import type { FocusMode, Settings, Theme } from './types'
 
 // Settings read from disk are checked here, so a hand-edited or old file can't break startup.
 
-const SIZES: TextSize[] = ['small', 'medium', 'large']
+/** The steps ⌘+ and ⌘− move through; 1 is normal size. */
+export const TEXT_SCALES = [0.8, 0.9, 1, 1.1, 1.2, 1.35, 1.5, 1.7]
+
+/** The nearest step to any number (so old or hand-edited values still work). */
+export const nearestScale = (n: number): number =>
+  TEXT_SCALES.reduce((best, s) => (Math.abs(s - n) < Math.abs(best - n) ? s : best), 1)
+
+/** One step bigger (+1) or smaller (−1), staying within the steps. */
+export function stepScale(current: number, by: 1 | -1): number {
+  const i = TEXT_SCALES.indexOf(nearestScale(current))
+  return TEXT_SCALES[Math.max(0, Math.min(TEXT_SCALES.length - 1, i + by))]
+}
 const THEMES: Theme[] = ['system', 'light', 'dark']
 export const FOCUS_MODES: FocusMode[] = ['off', 'paragraph', 'sentence']
 
@@ -14,10 +25,9 @@ export function normalizeSettings(saved: Record<string, unknown>): Settings {
   // Older versions: focus was on/off plus a scope, and text size was a number.
   let focus = saved.focus
   if (typeof focus === 'boolean') focus = focus ? (saved.focusScope ?? 'paragraph') : 'paragraph'
-  let textSize = saved.textSize
-  if (typeof saved.textScale === 'number') {
-    textSize = saved.textScale < 0.95 ? 'small' : saved.textScale > 1.05 ? 'large' : 'medium'
-  }
+  // …and briefly a choice of small / medium / large.
+  const named: Record<string, number> = { small: 0.9, medium: 1, large: 1.1 }
+  const textScale = typeof saved.textScale === 'number' ? saved.textScale : (named[saved.textSize as string] ?? 1)
   const win = (saved.window ?? {}) as Record<string, unknown>
   const b = win.bounds as Record<string, unknown> | undefined
   const bounds =
@@ -31,7 +41,7 @@ export function normalizeSettings(saved: Record<string, unknown>): Settings {
     folders,
     sidebar: bool(saved.sidebar, false),
     focus: oneOf(focus, FOCUS_MODES, 'paragraph'),
-    textSize: oneOf(textSize, SIZES, 'medium'),
+    textScale: nearestScale(textScale),
     showMarkdown: bool(saved.showMarkdown, false),
     theme: oneOf(saved.theme, THEMES, 'system'),
     // Full screen is never restored at launch; the window starts maximised instead.

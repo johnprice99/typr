@@ -1,6 +1,6 @@
 import iconLight from '../../../../resources/icon-light.png'
 import iconDark from '../../../../resources/icon-dark.png'
-import type { Settings, TextSize, Theme } from '../../../shared/types'
+import type { Settings, Theme } from '../../../shared/types'
 
 // Settings and About: small centred panels in the same style as the palette.
 // Everything works from the keyboard: Tab between rows, arrows to choose, Esc to close.
@@ -9,11 +9,6 @@ export const THEMES: { id: Theme; name: string }[] = [
   { id: 'system', name: 'System' },
   { id: 'light', name: 'Light' },
   { id: 'dark', name: 'Dark' }
-]
-export const SIZES: { id: TextSize; name: string }[] = [
-  { id: 'small', name: 'Small' },
-  { id: 'medium', name: 'Medium' },
-  { id: 'large', name: 'Large' }
 ]
 
 let open: { el: HTMLElement; refresh?: (s: Settings) => void } | null = null
@@ -86,6 +81,28 @@ function choice<T extends string>(options: { id: T; name: string }[], current: T
 
 export interface SettingsHandlers {
   set: <K extends keyof Settings>(key: K, value: Settings[K]) => void
+  /** Text size one step bigger (+1) or smaller (−1). */
+  step: (by: 1 | -1) => void
+}
+
+/** "−  100%  +", also driven by the arrow keys (and ⌘+ / ⌘− anywhere). */
+function sizeControl(scale: number, step: (by: 1 | -1) => void): HTMLDivElement {
+  const group = el('div', 'stepper')
+  const button = (label: string, by: 1 | -1, name: string): HTMLButtonElement => {
+    const b = el('button', undefined, label)
+    b.setAttribute('aria-label', name)
+    b.addEventListener('click', () => step(by))
+    return b
+  }
+  const value = el('span', 'stepper-value', `${Math.round(scale * 100)}%`)
+  group.append(button('−', -1, 'Smaller text'), value, button('+', 1, 'Bigger text'))
+  group.addEventListener('keydown', (e) => {
+    const by = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0
+    if (!by) return
+    e.preventDefault()
+    step(by)
+  })
+  return group
 }
 
 export function openSettings(settings: Settings, h: SettingsHandlers): void {
@@ -104,10 +121,7 @@ export function openSettings(settings: Settings, h: SettingsHandlers): void {
         'Appearance',
         choice(THEMES, s.theme, (v) => h.set('theme', v))
       ),
-      row(
-        'Text size',
-        choice(SIZES, s.textSize, (v) => h.set('textSize', v))
-      )
+      row('Text size', sizeControl(s.textScale, h.step))
     )
     const rows = box.querySelectorAll<HTMLElement>('.setting')
     const target = rows[Math.max(0, focusedRow)]
