@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.web.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"]
+  },
+  "include": [
+    "tests/**/*",
+    "src/renderer/src/**/*",
+    "src/shared/**/*",
+    "src/preload/*.d.ts",
+    "vitest.config.ts",
+    "playwright.config.ts"
+  ]
+}

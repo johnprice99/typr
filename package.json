@@ -1,0 +1,43 @@
+{
+  "name": "typr",
+  "version": "0.1.0",
+  "description": "A quiet Markdown editor for writing stories.",
+  "main": "./out/main/index.js",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.test.json",
+    "dist": "electron-vite build && electron-builder --mac",
+    "pack": "electron-vite build && electron-builder --mac --dir",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "vitest run",
+    "test:e2e": "electron-vite build && playwright test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run typecheck && npm run format:check && npm run test:unit"
+  },
+  "devDependencies": {
+    "@codemirror/autocomplete": "^6.18.0",
+    "@codemirror/commands": "^6.8.0",
+    "@codemirror/lang-markdown": "^6.3.0",
+    "@codemirror/language": "^6.11.0",
+    "@codemirror/search": "^6.5.0",
+    "@codemirror/state": "^6.5.0",
+    "@codemirror/view": "^6.36.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@lezer/common": "^1.2.0",
+    "@lezer/highlight": "^1.2.0",
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^22.0.0",
+    "electron": "^44.0.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "prettier": "^3.9.10",
+    "typescript": "^5.9.0",
+    "vite": "^7.3.0",
+    "vitest": "^5.0.4"
+  },
+  "author": "John Price"
+}

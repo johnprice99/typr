@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build output
+out/
+dist/
+
+# Test output
+test-results/
+playwright-report/
+coverage/
+
+# Logs and local files
+*.log
+.env
+.env.*
+.DS_Store

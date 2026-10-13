@@ -1,0 +1,29 @@
+appId: com.johnprice.typr
+productName: Typr
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**
+  - package.json
+# Light and dark Dock icons, swapped at runtime to match the appearance.
+extraResources:
+  - from: resources/
+    to: icons/
+    filter: ['icon-*.png']
+mac:
+  icon: build/icon.icns
+  category: public.app-category.productivity
+  target:
+    - dmg
+  # Unsigned build for personal use. Add a Developer ID here to distribute.
+  identity: null
+fileAssociations:
+  - ext: [md, markdown]
+    name: Markdown Document
+    role: Editor
+    rank: Alternate
+  - ext: txt
+    name: Plain Text Document
+    role: Editor
+    rank: Alternate
