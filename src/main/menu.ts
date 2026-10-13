@@ -69,12 +69,23 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
         cmd('Find…', 'find', 'CmdOrCtrl+F'),
         cmd('Find and Replace…', 'replace', 'CmdOrCtrl+Shift+F'),
         sep,
-        cmd('Insert Link', 'link', 'CmdOrCtrl+K'),
         cmd('Insert Image…', 'image'),
         cmd('Insert Table', 'table'),
         sep,
         cmd('Add Comment', 'comment', 'CmdOrCtrl+Shift+M'),
         cmd('Go to Comment…', 'comments')
+      ]
+    },
+    {
+      label: 'Format',
+      submenu: [
+        cmd('Bold', 'bold', 'CmdOrCtrl+B'),
+        cmd('Italic', 'italic', 'CmdOrCtrl+I'),
+        cmd('Underline', 'underline', 'CmdOrCtrl+U'),
+        cmd('Strikethrough', 'strike', 'CmdOrCtrl+Shift+X'),
+        cmd('Inline Code', 'code', 'CmdOrCtrl+Shift+C'),
+        sep,
+        cmd('Link', 'link', 'CmdOrCtrl+K')
       ]
     },
     {

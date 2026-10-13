@@ -255,3 +255,24 @@ test.describe('front matter, text size and closing', () => {
     await expect.poll(() => t.savedSettings().folders).toEqual([])
   })
 })
+
+test.describe('text styles', () => {
+  test('underline renders, and the Format commands wrap the selection', async ({ launch }) => {
+    const t = await launch()
+    await t.setText('Some <u>underlined</u> words.\n\nEnd.')
+    expect(await t.lineShown(1)).toBe('Some underlined words.')
+    await expect(t.page.locator('.md-underline')).toHaveText('underlined')
+    await t.setText('one two three four five')
+    for (const [id, word] of [
+      ['italic', 'one'],
+      ['bold', 'two'],
+      ['underline', 'three'],
+      ['strike', 'four'],
+      ['code', 'five']
+    ]) {
+      await t.selectText(word)
+      await t.command(id)
+    }
+    expect(await t.text()).toBe('*one* **two** <u>three</u> ~~four~~ `five`')
+  })
+})

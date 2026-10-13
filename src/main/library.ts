@@ -1,7 +1,7 @@
 import { constants, existsSync, FSWatcher, renameSync, statSync, watch, writeFileSync } from 'fs'
 import { access, open, readdir, rename, stat, unlink } from 'fs/promises'
 import { basename, dirname, join } from 'path'
-import { isTextPath } from '../shared/files'
+import { isDocumentPath } from '../shared/files'
 
 const IGNORE = new Set(['node_modules', '.git', '.obsidian', '.trash'])
 /** Folders deeper than this are left out. */
@@ -11,8 +11,9 @@ const MAX_OPEN = 32
 
 /**
  * Lists a folder: paths relative to it with forward slashes, subfolders ending
- * in "/". Shows subfolders with writing in them and empty ones you've just
- * made, but not ones that only hold pictures or other files.
+ * in "/". Only Markdown documents are listed. Subfolders show if they have some
+ * inside, or are empty (e.g. one you've just made), but not if they only hold
+ * pictures or other files.
  */
 export async function scan(root: string, rel = '', depth = 0): Promise<string[]> {
   if (depth > MAX_DEPTH) return []
@@ -33,7 +34,7 @@ export async function scan(root: string, rel = '', depth = 0): Promise<string[]>
         const empty = (await limited(() => readdir(join(root, p))).catch(() => [] as string[])).every((n) => n.startsWith('.'))
         return empty ? [`${p}/`] : []
       }
-      return isTextPath(e.name) ? [p] : []
+      return isDocumentPath(e.name) ? [p] : []
     })
   )
   return parts.flat()

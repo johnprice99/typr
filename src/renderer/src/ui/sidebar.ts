@@ -18,9 +18,25 @@ export interface SidebarHandlers {
   openFolder: () => void
 }
 
-const STORE = 'typr.collapsed'
-const collapsed = new Set<string>(JSON.parse(localStorage.getItem(STORE) ?? '[]'))
-const persist = (): void => localStorage.setItem(STORE, JSON.stringify([...collapsed]))
+// Subfolders start collapsed and are remembered when you open them; the open
+// folders themselves (the sections) start open and are remembered when collapsed.
+const load = (key: string): Set<string> => new Set<string>(JSON.parse(localStorage.getItem(key) ?? '[]'))
+const expanded = load('typr.expanded')
+const collapsedRoots = load('typr.collapsedRoots')
+const persist = (): void => {
+  localStorage.setItem('typr.expanded', JSON.stringify([...expanded]))
+  localStorage.setItem('typr.collapsedRoots', JSON.stringify([...collapsedRoots]))
+}
+let roots = new Set<string>()
+const isCollapsed = (path: string): boolean => (roots.has(path) ? collapsedRoots.has(path) : !expanded.has(path))
+function toggle(path: string): void {
+  if (roots.has(path)) {
+    if (!collapsedRoots.delete(path)) collapsedRoots.add(path)
+  } else if (!expanded.delete(path)) {
+    expanded.add(path)
+  }
+  persist()
+}
 
 const byName = (a: Node, b: Node): number =>
   a.dir !== b.dir ? (a.dir ? -1 : 1) : a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
@@ -55,20 +71,29 @@ function tree({ path: root, entries }: FolderListing): Node {
 }
 
 export function renderSidebar(el: HTMLElement, folders: FolderListing[], current: string | null, h: SidebarHandlers): void {
+  roots = new Set(folders.map((f) => f.path))
   // Always show the way to the open file.
-  if (current) for (const c of [...collapsed]) if (isInside(current, c)) collapsed.delete(c)
+  if (current) {
+    for (const r of roots) if (isInside(current, r)) collapsedRoots.delete(r)
+    for (
+      let d = current.slice(0, current.lastIndexOf('/'));
+      d.includes('/') && !roots.has(d);
+      d = d.slice(0, d.lastIndexOf('/'))
+    ) {
+      expanded.add(d)
+    }
+    persist()
+  }
 
   const row = (n: Node, depth: number, cls: string, label: string): HTMLDivElement => {
     const r = document.createElement('div')
-    r.className = `${cls}${n.path === current ? ' current' : ''}${n.dir && collapsed.has(n.path) ? ' collapsed' : ''}`
+    r.className = `${cls}${n.path === current ? ' current' : ''}${n.dir && isCollapsed(n.path) ? ' collapsed' : ''}`
     r.style.paddingLeft = `${12 + depth * 14}px`
     r.textContent = label
     r.title = n.path.replace(/^\/Users\/[^/]+/, '~')
     r.addEventListener('click', () => {
       if (!n.dir) return h.open(n.path)
-      if (collapsed.has(n.path)) collapsed.delete(n.path)
-      else collapsed.add(n.path)
-      persist()
+      toggle(n.path)
       r.classList.toggle('collapsed')
       r.nextElementSibling?.classList.toggle('hidden')
     })
@@ -86,7 +111,7 @@ export function renderSidebar(el: HTMLElement, folders: FolderListing[], current
       li.append(row(n, depth, `row ${n.dir ? 'folder' : 'file'}`, n.dir ? n.name : stem(n.name)))
       if (n.dir) {
         const sub = draw(n.children, depth + 1)
-        if (collapsed.has(n.path)) sub.classList.add('hidden')
+        if (isCollapsed(n.path)) sub.classList.add('hidden')
         li.append(sub)
       }
       ul.append(li)
@@ -115,7 +140,7 @@ export function renderSidebar(el: HTMLElement, folders: FolderListing[], current
       const body = top.children.length
         ? draw(top.children, 0)
         : Object.assign(document.createElement('p'), { className: 'sidebar-note', textContent: 'No documents yet' })
-      if (collapsed.has(top.path)) body.classList.add('hidden')
+      if (isCollapsed(top.path)) body.classList.add('hidden')
       section.append(body)
       return section
     })

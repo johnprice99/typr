@@ -351,6 +351,11 @@ body {
 .md-em {
   font-style: italic;
 }
+.md-underline {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  text-decoration-thickness: 1px;
+}
 .md-strike {
   text-decoration: line-through;
   color: var(--faint);

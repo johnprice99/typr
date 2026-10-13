@@ -51,6 +51,12 @@ export async function refreshFiles(): Promise<void> {
   sendToRenderer('folders', await listFolders())
 }
 
+/** Where file dialogs start: the open document's folder, else the most recently opened folder. */
+function startIn(): string | undefined {
+  const doc = watchedFile()
+  return doc ? dirname(doc) : settings.folders.at(-1)
+}
+
 /** Opens a folder in the sidebar. A folder inside one already open is already there. */
 async function addFolder(path: string): Promise<string> {
   path = abs(path)
@@ -163,6 +169,7 @@ export function registerIpc(): void {
     if (!win) return null
     const res = await dialog.showOpenDialog(win, {
       title: 'Insert Image',
+      defaultPath: startIn(),
       properties: ['openFile'],
       filters: [{ name: 'Images', extensions: [...IMAGE_EXTENSIONS] }]
     })
@@ -173,7 +180,7 @@ export function registerIpc(): void {
     const win = getWindow()
     if (!win) return null
     const res = await dialog.showOpenDialog(win, {
-      defaultPath: settings.folders[0],
+      defaultPath: startIn(),
       properties: ['openFile'],
       filters: [{ name: 'Text', extensions: [...TEXT_EXTENSIONS] }]
     })
@@ -185,9 +192,12 @@ export function registerIpc(): void {
   handle('openFolder', async () => {
     const win = getWindow()
     if (!win) return null
+    // Start beside the folder opened most recently (its parent), so a sibling is one click away.
+    const last = settings.folders.at(-1)
     const res = await dialog.showOpenDialog(win, {
       title: 'Open Folder',
       buttonLabel: 'Open',
+      defaultPath: last ? dirname(last) : undefined,
       properties: ['openDirectory', 'createDirectory']
     })
     if (res.canceled || !res.filePaths[0]) return null

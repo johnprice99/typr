@@ -13,7 +13,7 @@ const file = (rel: string, content = ''): void => {
 }
 
 describe('the library list', () => {
-  it('lists documents and folders, skipping hidden, ignored and picture-only folders', async () => {
+  it('lists Markdown documents, and folders with some in them or empty, but not picture-only ones', async () => {
     file('Story.md')
     file('notes.txt')
     file('Chapters/One.md')
@@ -29,8 +29,7 @@ describe('the library list', () => {
       'Chapters/Deep/Two.markdown',
       'Chapters/One.md',
       'Empty/',
-      'Story.md',
-      'notes.txt'
+      'Story.md'
     ])
   })
 })

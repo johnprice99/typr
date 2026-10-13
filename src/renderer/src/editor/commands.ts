@@ -8,30 +8,54 @@ import { inCode } from './syntax'
 
 type Target = Pick<EditorView, 'state' | 'dispatch'>
 
-/** Wraps the selection in `mark`, or unwraps it if it's already wrapped. */
-export function toggleWrap(mark: string) {
+const stars = (text: string, from: number, dir: 1 | -1): number => {
+  let n = 0
+  for (let i = dir === 1 ? from : from - 1; i >= 0 && i < text.length && text[i] === '*'; i += dir) n++
+  return n
+}
+
+/**
+ * Wraps the selection in `open`…`close` (e.g. "**", or "<u>" and "</u>"), or
+ * unwraps it if it's already wrapped. Spaces at the edges of the selection are
+ * left outside, since "*word *" wouldn't be italic. "*" (italic) and "**" (bold)
+ * are told apart, so ⌘I in bold text gives bold italic rather than breaking it.
+ */
+export function toggleWrap(open: string, close = open) {
   return (view: Target): boolean => {
     const { state } = view
-    const n = mark.length
+    const o = open.length
+    const c = close.length
     view.dispatch(
       state.changeByRange((range) => {
-        const before = state.sliceDoc(range.from - n, range.from)
-        const after = state.sliceDoc(range.to, range.to + n)
-        if (before === mark && after === mark) {
+        let { from, to } = range
+        while (from < to && /\s/.test(state.sliceDoc(from, from + 1))) from++
+        while (to > from && /\s/.test(state.sliceDoc(to - 1, to))) to--
+        const doc = state.doc
+        // Is it already wrapped just outside the selection?
+        let wrapped: boolean
+        if (/^\*+$/.test(open)) {
+          const line = doc.lineAt(from)
+          const text = line.text
+          const n = Math.min(stars(text, from - line.from, -1), stars(text, to - line.from, 1))
+          wrapped = o === 1 ? n === 1 || n === 3 : n >= 2
+        } else {
+          wrapped = state.sliceDoc(from - o, from) === open && state.sliceDoc(to, to + c) === close
+        }
+        if (wrapped) {
           return {
             changes: [
-              { from: range.from - n, to: range.from },
-              { from: range.to, to: range.to + n }
+              { from: from - o, to: from },
+              { from: to, to: to + c }
             ],
-            range: EditorSelection.range(range.from - n, range.to - n)
+            range: EditorSelection.range(from - o, to - o)
           }
         }
         return {
           changes: [
-            { from: range.from, insert: mark },
-            { from: range.to, insert: mark }
+            { from, insert: open },
+            { from: to, insert: close }
           ],
-          range: EditorSelection.range(range.from + n, range.to + n)
+          range: EditorSelection.range(from + o, to + o)
         }
       })
     )

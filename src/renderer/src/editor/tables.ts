@@ -15,6 +15,7 @@ function inline(md: string): string {
     .replace(/\*\*([^*]+)\*\*|__([^_]+)__/g, (_m, a, b) => `<strong>${a ?? b}</strong>`)
     .replace(/\*([^*]+)\*|_([^_]+)_/g, (_m, a, b) => `<em>${a ?? b}</em>`)
     .replace(/~~([^~]+)~~/g, '<s>$1</s>')
+    .replace(/&lt;u&gt;(.+?)&lt;\/u&gt;/g, '<u>$1</u>')
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '<span class="md-link">$1</span>')
 }
 

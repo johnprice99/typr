@@ -17,7 +17,30 @@ import type { FocusMode } from '../../../shared/types'
 
 // Keys the app uses itself (CodeMirror would otherwise swallow them), plus
 // built-ins that are surprising in prose: delete line (⇧⌘K) and HTML comment (⌘/).
-const RESERVED = new Set(['Mod-d', 'Mod-f', 'Mod-Alt-g', 'Mod-[', 'Mod-]', 'Mod-Enter', 'Mod-i', 'Mod-k', 'Shift-Mod-k', 'Mod-/'])
+const RESERVED = new Set([
+  'Mod-d',
+  'Mod-f',
+  'Mod-Alt-g',
+  'Mod-[',
+  'Mod-]',
+  'Mod-Enter',
+  'Mod-i',
+  'Mod-u',
+  'Mod-k',
+  'Shift-Mod-k',
+  'Mod-/'
+])
+
+/** The text styles, as the Markdown (or HTML, for underline) that wraps them. */
+export const FORMATS = {
+  bold: ['**', '**'],
+  italic: ['*', '*'],
+  underline: ['<u>', '</u>'],
+  strike: ['~~', '~~'],
+  code: ['`', '`']
+} as const
+export type Format = keyof typeof FORMATS
+const wrap = (f: Format): ReturnType<typeof toggleWrap> => toggleWrap(FORMATS[f][0], FORMATS[f][1])
 const free = (bindings: readonly KeyBinding[]): KeyBinding[] => bindings.filter((b) => !b.key || !RESERVED.has(b.key))
 
 // Pasting a URL over selected text turns the text into a link.
@@ -53,8 +76,8 @@ export interface Editor {
   setLive(on: boolean): void
   /** Call after the font or text size changes. */
   refreshLayout(): void
-  bold(): void
-  italic(): void
+  /** Toggles a text style on the selection. */
+  format(f: Format): void
   link(url?: string): void
   insertTable(): void
   /** Inserts text as its own paragraph at (or just after the line of) pos. */
@@ -105,8 +128,11 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): Editor {
       }
     }),
     keymap.of([
-      { key: 'Mod-b', run: toggleWrap('**') },
-      { key: 'Mod-i', run: toggleWrap('_') },
+      { key: 'Mod-b', run: wrap('bold') },
+      { key: 'Mod-i', run: wrap('italic') },
+      { key: 'Mod-u', run: wrap('underline') },
+      { key: 'Shift-Mod-x', run: wrap('strike') },
+      { key: 'Shift-Mod-c', run: wrap('code') },
       ...tableKeys,
       ...free(searchKeymap),
       ...free(defaultKeymap),
@@ -143,8 +169,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): Editor {
       view.dispatch({ effects: layoutC.reconfigure(layoutExt) })
     },
     refreshLayout: () => refreshMarks(view),
-    bold: () => void toggleWrap('**')(view),
-    italic: () => void toggleWrap('_')(view),
+    format: (f) => void wrap(f)(view),
     link: (url) => void insertLink(view, url),
     insertTable: () => insertTable(view),
     insertBlock(pos, text) {

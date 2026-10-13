@@ -1,6 +1,9 @@
 // One place for which files Typr treats as documents and images.
 
-export const TEXT_EXTENSIONS = ['md', 'markdown', 'txt'] as const
+/** Markdown documents: what the sidebar lists. */
+export const DOCUMENT_EXTENSIONS = ['md', 'markdown'] as const
+/** Files Typr will open (⌘O, Finder, dragging): Markdown, plus plain text. */
+export const TEXT_EXTENSIONS = [...DOCUMENT_EXTENSIONS, 'txt'] as const
 export const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'bmp'] as const
 
 const ext = (path: string): string => {
@@ -10,4 +13,5 @@ const ext = (path: string): string => {
 }
 
 export const isTextPath = (path: string): boolean => (TEXT_EXTENSIONS as readonly string[]).includes(ext(path))
+export const isDocumentPath = (path: string): boolean => (DOCUMENT_EXTENSIONS as readonly string[]).includes(ext(path))
 export const isImagePath = (path: string): boolean => (IMAGE_EXTENSIONS as readonly string[]).includes(ext(path))

@@ -57,6 +57,34 @@ describe('formatting commands', () => {
     expect(e.text()).toBe('a word here')
   })
 
+  it('leaves spaces at the edges of a selection outside the markers', () => {
+    const e = editor('a word here', 1, 7) // " word "
+    toggleWrap('*')(e.view as never)
+    expect(e.text()).toBe('a *word* here')
+  })
+
+  it('tells italic from bold: ⌘I inside bold gives bold italic, and back', () => {
+    const e = editor('**bold**', 2, 6)
+    toggleWrap('*')(e.view as never)
+    expect(e.text()).toBe('***bold***')
+    toggleWrap('**')(e.view as never)
+    expect(e.text()).toBe('*bold*')
+    toggleWrap('*')(e.view as never)
+    expect(e.text()).toBe('bold')
+  })
+
+  it.each([
+    ['<u>', '</u>', '<u>word</u>'],
+    ['~~', '~~', '~~word~~'],
+    ['`', '`', '`word`']
+  ])('wraps and unwraps %s', (open, close, wrapped) => {
+    const e = editor('word', 0, 4)
+    toggleWrap(open, close)(e.view as never)
+    expect(e.text()).toBe(wrapped)
+    toggleWrap(open, close)(e.view as never)
+    expect(e.text()).toBe('word')
+  })
+
   it('makes a link with the address left empty', () => {
     const e = editor('See the map.', 4, 11)
     insertLink(e.view as never)

@@ -55,11 +55,18 @@ test.describe('app chrome', () => {
       }))
     )
     const find = (label: string): string[] => menus.find((m) => m.label === label)!.items
-    expect(find('Edit')).toContain('Insert Link [CmdOrCtrl+K]')
     expect(find('Edit')).toContain('Find and Replace… [CmdOrCtrl+Shift+F]')
     expect(find('View')).toContain('Command Palette… [CmdOrCtrl+Shift+P]')
     expect(find('File')).toContain('Rename… [CmdOrCtrl+Shift+R]')
-    expect(menus.map((m) => m.label)).toEqual(['Typr', 'File', 'Edit', 'View', 'Go', 'Window'])
+    expect(find('Format')).toEqual([
+      'Bold [CmdOrCtrl+B]',
+      'Italic [CmdOrCtrl+I]',
+      'Underline [CmdOrCtrl+U]',
+      'Strikethrough [CmdOrCtrl+Shift+X]',
+      'Inline Code [CmdOrCtrl+Shift+C]',
+      'Link [CmdOrCtrl+K]'
+    ])
+    expect(menus.map((m) => m.label)).toEqual(['Typr', 'File', 'Edit', 'Format', 'View', 'Go', 'Window'])
   })
 
   test('the palette lists commands with ticks for current settings', async ({ launch }) => {
@@ -129,6 +136,20 @@ test.describe('app chrome', () => {
     expect(readdirSync(stories).sort()).toEqual(['Chapter two.md', 'Chapter.md'])
     await t.command('close-folder', stories)
     await expect(t.page.locator('.sidebar-header')).toHaveText(['library'])
+  })
+
+  test('subfolders start collapsed; the way to the open document opens', async ({ launch }) => {
+    const t = await launch({ files: { 'Top.md': 'top', 'Book/Part 1/Chapter.md': 'ch', 'Book/Part 2/Other.md': 'x' } })
+    await t.command('toggle-sidebar')
+    await expect(t.page.locator('#sidebar .file:visible')).toHaveText(['Top'])
+    await t.open(join(t.lib, 'Book/Part 1/Chapter.md'))
+    await expect(t.page.locator('#sidebar .file:visible')).toHaveText(['Chapter', 'Top'])
+    // "Part 2" stays collapsed until you open it.
+    await t.page.locator('#sidebar .folder', { hasText: 'Part 2' }).click()
+    await expect(t.page.locator('#sidebar .file:visible')).toHaveText(['Chapter', 'Other', 'Top'])
+    // Collapsing the whole folder is remembered too.
+    await t.page.locator('.sidebar-header').click()
+    await expect(t.page.locator('#sidebar .file:visible')).toHaveCount(0)
   })
 
   test('folders that only hold pictures stay out of the sidebar', async ({ launch }) => {

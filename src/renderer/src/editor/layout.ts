@@ -6,6 +6,7 @@ import { buildLive, LiveOptions } from './live'
 import { CommentActions, comments } from './comments'
 import { renderedTables } from './tables'
 import { propertiesBox } from './frontmatter'
+import { underlines } from './underline'
 
 /** How the document is laid out: formatted (live preview) or as raw Markdown. */
 export function layout(live: LiveOptions | null, commentActions: CommentActions): Extension {
@@ -14,6 +15,7 @@ export function layout(live: LiveOptions | null, commentActions: CommentActions)
     EditorView.editorAttributes.of({ class: live ? 'cm-live' : 'cm-raw' }),
     comments(live !== null, commentActions),
     live ? [renderedTables, propertiesBox] : [],
+    underlines(live !== null),
     ViewPlugin.fromClass(
       class {
         decorations: DecorationSet
