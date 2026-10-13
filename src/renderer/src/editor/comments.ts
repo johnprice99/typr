@@ -1,7 +1,7 @@
 import { EditorState, Extension, Range, StateField } from '@codemirror/state'
 import { syntaxTree } from '@codemirror/language'
-import { inCode } from './syntax'
-import { Decoration, DecorationSet, EditorView, hoverTooltip, ViewPlugin, ViewUpdate } from '@codemirror/view'
+import { decorations, inCode } from './syntax'
+import { Decoration, DecorationSet, EditorView, hoverTooltip } from '@codemirror/view'
 
 // Comments use CriticMarkup, so they live in the file itself and travel with it:
 //   {==the text you're commenting on==}{>>your note<<}
@@ -47,6 +47,8 @@ const outsideCode = (state: EditorState, list: Comment[]): Comment[] => list.fil
 
 /** Characters that can start, end or break a comment. */
 const MARKUP = /[{}=<>]/
+/** …and deleting a line break can join a comment's two halves. */
+const DELETED_MARKUP = /[{}=<>\n]/
 
 interface Comments {
   /** Everything that looks like a comment. */
@@ -73,7 +75,7 @@ export const commentsField = StateField.define<Comments>({
     let rescan = false
     tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
       if (rescan) return
-      if (MARKUP.test(inserted.toString()) || MARKUP.test(tr.startState.sliceDoc(fromA, toA))) rescan = true
+      if (MARKUP.test(inserted.toString()) || DELETED_MARKUP.test(tr.startState.sliceDoc(fromA, toA))) rescan = true
       else if (value.found.some((c) => fromA <= c.to && toA >= c.from)) rescan = true
     })
     if (rescan) return scan(tr.state)
@@ -207,19 +209,5 @@ export function comments(live: boolean, actions: CommentActions): Extension {
     { hoverTime: 250, hideOnChange: true }
   )
 
-  return [
-    ViewPlugin.fromClass(
-      class {
-        decorations: DecorationSet
-        constructor(view: EditorView) {
-          this.decorations = build(view, live)
-        }
-        update(u: ViewUpdate): void {
-          if (u.docChanged || u.selectionSet) this.decorations = build(u.view, live)
-        }
-      },
-      { decorations: (v) => v.decorations }
-    ),
-    tip
-  ]
+  return [decorations((view) => build(view, live)), tip]
 }

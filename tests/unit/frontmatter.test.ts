@@ -29,6 +29,18 @@ describe('front matter', () => {
     expect(state.sliceDoc(r.from, r.to)).toBe('---\ntitle: The Beast of Briarfen\norder: 1\nsummary: Livestock are dying.\n---')
   })
 
+  it('is recognised when the closing fence is typed later, in a long document', () => {
+    const top = '---\ntitle: x\n'
+    const body = Array.from({ length: 400 }, (_, i) => `Paragraph ${i}.\n`).join('\n')
+    let state = parse(top + body)
+    expect(topLevel(state)[0]).toBe('HorizontalRule')
+    for (const [i, ch] of [...'---\n'].entries()) {
+      state = state.update({ changes: { from: top.length + i, insert: ch } }).state
+      ensureSyntaxTree(state, state.doc.length, 1000)
+    }
+    expect(topLevel(state)[0]).toBe('Frontmatter')
+  })
+
   it('only counts at the very start, and only when closed', () => {
     expect(topLevel(parse('Intro\n\n---\ntitle: x\n---\n'))).not.toContain('Frontmatter')
     expect(topLevel(parse('---\ntitle: never closed\n\nText'))).not.toContain('Frontmatter')

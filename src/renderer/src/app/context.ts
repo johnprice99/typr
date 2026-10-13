@@ -29,4 +29,6 @@ export function notify(message: string): void {
   toastTimer = window.setTimeout(() => el.classList.remove('show'), 2400)
 }
 
-export const errorText = (e: unknown): string => String((e as Error)?.message ?? e)
+/** A failure as a person would want to read it (without Electron's "Error invoking remote method…" prefix). */
+export const errorText = (e: unknown): string =>
+  String((e as Error)?.message ?? e).replace(/^Error invoking remote method '[^']+': (?:\w*Error: )?/, '')

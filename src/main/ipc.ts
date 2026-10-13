@@ -4,13 +4,14 @@ import { mkdir, readFile, rename, stat, writeFile } from 'fs/promises'
 import { basename, dirname, extname, resolve } from 'path'
 import { IMAGE_EXTENSIONS, isTextPath, TEXT_EXTENSIONS } from '../shared/files'
 import { FLUSHED, FlushedArgs, Invoke, InvokeChannel } from '../shared/ipc'
-import { isInside } from '../shared/paths'
+import { isExternalUrl, isInside, rebase } from '../shared/paths'
+import { normalizeSettings } from '../shared/settings'
 import type { FolderListing, InitialState, Settings, WriteResult } from '../shared/types'
 import { sanitize, scan, uniquePath, watchFolders, writeAtomic } from './library'
 import { settings, updateSetting } from './settings'
 import { locate, renamedCurrent, watchCurrent, watchedFile, wroteCurrent } from './watcher'
 import { testing } from './setup'
-import { flushed, getWindow, send, sendToRenderer, takePendingOpens } from './window'
+import { flushed, getWindow, send, sendToRenderer, takePending } from './window'
 
 // Everything the renderer can ask of the file system. Every path is resolved
 // first (so "folder/../../x" can't sneak out), and changes are only allowed
@@ -39,6 +40,24 @@ function assertManagedDir(dir: string): void {
   if (!inLibrary(dir) && ![...known].some((f) => dirname(f) === dir)) throw new Error(`Typr can't create files in ${dir}`)
 }
 
+const utf8 = (bytes: Uint8Array): string | null => {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch {
+    return null
+  }
+}
+
+/** Reads a text file; one that isn't UTF-8 is refused, since saving it would corrupt it. */
+async function readText(path: string): Promise<string> {
+  const text = utf8(await readFile(path))
+  if (text === null) throw new Error(`“${basename(path)}” isn’t UTF-8 text, so Typr can’t edit it safely`)
+  return text
+}
+
+/** The same text, ignoring which line endings it uses. */
+const sameText = (a: string, b: string): boolean => a.replace(/\r\n?/g, '\n') === b.replace(/\r\n?/g, '\n')
+
 /** Forgets which files were opened this session (used between tests). */
 export function resetSession(): void {
   known.clear()
@@ -50,35 +69,40 @@ export const listFolders = (): Promise<FolderListing[]> =>
 /** "Open Files" that exist right now (one on an unplugged drive is hidden, not forgotten). */
 const listOpenFiles = (): string[] => settings.files.filter((f) => existsSync(f))
 
+/** Sends the window the folders and Open Files as they are now (and watches any folder not yet watched). */
+let listing = 0
 export async function refreshFiles(): Promise<void> {
-  sendToRenderer('folders', await listFolders(), listOpenFiles())
+  watchFolders(settings.folders, refreshFiles)
+  const n = ++listing
+  const folders = await listFolders()
+  // A slower, older scan mustn't replace a newer one.
+  if (n === listing) sendToRenderer('folders', folders, listOpenFiles())
+}
+
+function setFolders(next: string[]): Promise<void> {
+  updateSetting('folders', next)
+  return refreshFiles()
 }
 
 // ---------- "Open Files": files opened from outside the open folders ----------
 
+function setFiles(next: string[]): void {
+  if (next.length === settings.files.length && next.every((f, i) => f === settings.files[i])) return
+  updateSetting('files', next)
+  void refreshFiles()
+}
+
 /** Remembers a file opened from outside the open folders. */
 function keepFile(path: string): void {
-  if (!isTextPath(path) || inLibrary(path) || settings.files.includes(path)) return
-  updateSetting('files', [...settings.files, path])
-  void refreshFiles()
+  if (isTextPath(path) && !inLibrary(path) && !settings.files.includes(path)) setFiles([...settings.files, path])
 }
 
 /** Keeps "Open Files" pointing at files (or inside folders) that were renamed or moved. */
 export function movedOpenFile(from: string, to: string): void {
-  const fix = (f: string): string => (isInside(f, from) ? to + f.slice(from.length) : f)
-  if (!settings.files.some((f) => isInside(f, from))) return
-  updateSetting('files', [...new Set(settings.files.map(fix))])
-  void refreshFiles()
+  setFiles([...new Set(settings.files.map((f) => rebase(f, from, to)))])
 }
 
-function forgetFiles(match: (f: string) => boolean): void {
-  if (!settings.files.some(match)) return
-  updateSetting(
-    'files',
-    settings.files.filter((f) => !match(f))
-  )
-  void refreshFiles()
-}
+const forgetFiles = (match: (f: string) => boolean): void => setFiles(settings.files.filter((f) => !match(f)))
 
 /** Where file dialogs start: the open document's folder, else the most recently opened folder. */
 function startIn(): string | undefined {
@@ -92,10 +116,11 @@ async function addFolder(path: string): Promise<string> {
   const containing = settings.folders.find((f) => isInside(path, f))
   if (containing) return containing
   // Opening a folder that contains open ones replaces them; its files leave "Open Files".
-  updateSetting('folders', [...settings.folders.filter((f) => !isInside(f, path)), path])
-  forgetFiles((f) => isInside(f, path))
-  watchFolders(settings.folders, refreshFiles)
-  await refreshFiles()
+  updateSetting(
+    'files',
+    settings.files.filter((f) => !isInside(f, path))
+  )
+  await setFolders([...settings.folders.filter((f) => !isInside(f, path)), path])
   return path
 }
 
@@ -109,14 +134,14 @@ function handle<K extends InvokeChannel>(
 
 export function registerIpc(): void {
   handle('init', async (): Promise<InitialState> => {
-    const pendingOpen = takePendingOpens()
-    return { settings, folders: await listFolders(), files: listOpenFiles(), pendingOpen, version: app.getVersion() }
+    const pending = takePending()
+    return { settings, folders: await listFolders(), files: listOpenFiles(), ...pending, version: app.getVersion() }
   })
 
   handle('read', async (path: string) => {
     path = abs(path)
     assertText(path)
-    const text = await readFile(path, 'utf8')
+    const text = await readText(path)
     trustPath(path)
     return text
   })
@@ -129,17 +154,22 @@ export function registerIpc(): void {
       // Renamed or moved in Finder before the watcher noticed? Follow it. Never
       // quietly bring back a file that was deleted.
       const moved = await locate(path)
-      if (!moved) throw new Error(`ENOENT: ${path} no longer exists`)
+      if (!moved) return { gone: true }
       trustPath(moved)
+      movedOpenFile(path, moved)
+      renamedCurrent(path, moved)
       path = moved
     }
-    // Never quietly overwrite changes another app made since Typr last saw the file.
-    const disk = await readFile(path, 'utf8')
+    // Never quietly overwrite changes another app made since Typr last saw the file
+    // (including saving it in another text encoding: that's kept exactly as it was).
+    const bytes = await readFile(path)
+    const disk = utf8(bytes)
+    if (disk === content) return { path, copy: null }
     let copy: string | null = null
-    if (disk !== expected && disk !== content) {
+    if (disk === null || (!sameText(disk, expected) && !sameText(disk, content))) {
       const ext = extname(path)
       copy = uniquePath(dirname(path), `${sanitize(basename(path, ext))} (changed elsewhere)`, ext)
-      await writeFile(copy, disk, { encoding: 'utf8', flag: 'wx' })
+      await writeFile(copy, bytes, { flag: 'wx' })
       trustPath(copy)
     }
     await writeAtomic(path, content)
@@ -193,31 +223,18 @@ export function registerIpc(): void {
   handle('reveal', (path: string) => shell.showItemInFolder(path))
   handle('exists', (path: string) => existsSync(path))
   handle('openExternal', (url: string) => {
-    if (/^(https?|mailto):/i.test(url)) return shell.openExternal(url)
+    if (isExternalUrl(url)) return shell.openExternal(url)
   })
 
-  handle('pickImage', async () => {
+  /** Asks for one file, starting beside the open document. */
+  const pickFile = async (filter: Electron.FileFilter, title?: string): Promise<string | null> => {
     const win = getWindow()
     if (!win) return null
-    const res = await dialog.showOpenDialog(win, {
-      title: 'Insert Image',
-      defaultPath: startIn(),
-      properties: ['openFile'],
-      filters: [{ name: 'Images', extensions: [...IMAGE_EXTENSIONS] }]
-    })
-    return res.canceled ? null : res.filePaths[0]
-  })
-
-  handle('openDialog', async () => {
-    const win = getWindow()
-    if (!win) return null
-    const res = await dialog.showOpenDialog(win, {
-      defaultPath: startIn(),
-      properties: ['openFile'],
-      filters: [{ name: 'Text', extensions: [...TEXT_EXTENSIONS] }]
-    })
-    return res.canceled ? null : res.filePaths[0]
-  })
+    const res = await dialog.showOpenDialog(win, { title, defaultPath: startIn(), properties: ['openFile'], filters: [filter] })
+    return res.canceled ? null : (res.filePaths[0] ?? null)
+  }
+  handle('pickImage', () => pickFile({ name: 'Images', extensions: [...IMAGE_EXTENSIONS] }, 'Insert Image'))
+  handle('openDialog', () => pickFile({ name: 'Text', extensions: [...TEXT_EXTENSIONS] }))
 
   // Folders are only ever opened through the folder chooser, never from a path
   // the window supplies.
@@ -236,15 +253,7 @@ export function registerIpc(): void {
     return addFolder(res.filePaths[0])
   })
 
-  handle('closeFolder', async (path: string) => {
-    path = abs(path)
-    updateSetting(
-      'folders',
-      settings.folders.filter((f) => f !== path)
-    )
-    watchFolders(settings.folders, refreshFiles)
-    await refreshFiles()
-  })
+  handle('closeFolder', (path: string) => setFolders(settings.folders.filter((f) => f !== abs(path))))
 
   // Only a rearrangement of the folders already open; this can't add one.
   handle('reorderFolders', async (order: string[]) => {
@@ -254,8 +263,7 @@ export function registerIpc(): void {
       new Set(next).size === next.length &&
       next.every((f) => settings.folders.includes(f))
     if (!same) throw new Error('A new order must contain exactly the open folders')
-    updateSetting('folders', next)
-    await refreshFiles()
+    await setFolders(next)
   })
 
   handle('forgetFile', (path: string) => forgetFiles((f) => f === abs(path)))
@@ -276,37 +284,29 @@ export function registerIpc(): void {
 
   handle('setSetting', (key, value) => {
     // Where files may be written is only changed through openFolder / closeFolder.
-    if ((['folders', 'files', 'window'] as (keyof Settings)[]).includes(key)) throw new Error(`${key} can't be set directly`)
-    if (key === 'fullscreen') getWindow()?.setFullScreen(Boolean(value))
-    else updateSetting(key, value as never)
+    if (!Object.hasOwn(settings, key) || (['folders', 'files', 'window'] as (keyof Settings)[]).includes(key)) {
+      throw new Error(`${key} can't be set directly`)
+    }
+    if (key === 'fullscreen') getWindow()?.setFullScreen(value === true)
+    else updateSetting(key, normalizeSettings({ ...settings, [key]: value })[key] as never)
   })
 
   handle('itemMenu', (path: string, isDir: boolean) => {
+    const item = (label: string, id: string): MenuItemConstructorOptions => ({ label, click: () => send({ id, path }) })
+    const sep: MenuItemConstructorOptions = { type: 'separator' }
     const dir = isDir ? path : dirname(path)
-    const items: MenuItemConstructorOptions[] = [
+    const reveal: MenuItemConstructorOptions = { label: 'Show in Finder', click: () => shell.showItemInFolder(path) }
+    const here: MenuItemConstructorOptions[] = [
       { label: 'New Document Here', click: () => send({ id: 'new', path: dir }) },
       { label: 'New Folder Here…', click: () => send({ id: 'new-folder', path: dir }) },
-      { type: 'separator' },
-      { label: 'Show in Finder', click: () => shell.showItemInFolder(path) }
+      sep
     ]
-    if (settings.files.includes(path)) {
-      // An "Open Files" entry: no "New … Here" (its folder isn't open).
-      items.splice(0, 3)
-      items.push(
-        { label: 'Rename…', click: () => send({ id: 'rename', path }) },
-        { type: 'separator' },
-        { label: 'Remove from Open Files', click: () => send({ id: 'forget-file', path }) },
-        { label: 'Move to Trash', click: () => send({ id: 'trash', path }) }
-      )
-    } else if (settings.folders.includes(path)) {
-      items.push({ type: 'separator' }, { label: 'Close Folder', click: () => send({ id: 'close-folder', path }) })
-    } else {
-      items.push(
-        { label: 'Rename…', click: () => send({ id: 'rename', path }) },
-        { type: 'separator' },
-        { label: 'Move to Trash', click: () => send({ id: 'trash', path }) }
-      )
-    }
+    const items: MenuItemConstructorOptions[] = settings.files.includes(path)
+      ? // An "Open Files" entry: no "New … Here" (its folder isn't open).
+        [reveal, item('Rename…', 'rename'), sep, item('Remove from Open Files', 'forget-file'), item('Move to Trash', 'trash')]
+      : settings.folders.includes(path)
+        ? [...here, reveal, sep, item('Close Folder', 'close-folder')]
+        : [...here, reveal, item('Rename…', 'rename'), sep, item('Move to Trash', 'trash')]
     Menu.buildFromTemplate(items).popup({ window: getWindow() ?? undefined })
   })
 

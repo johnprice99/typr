@@ -1,8 +1,8 @@
 import { redo, undo } from '@codemirror/commands'
 import { openFind } from '../editor/find'
 import { openList, PaletteItem } from '../ui/palette'
-import { openAbout, THEMES } from '../ui/panels'
-import { FOCUS, label, set, setFocus, stepText } from './appearance'
+import { openAbout } from '../ui/panels'
+import { FOCUS, label, set, setFocus, stepText, THEMES } from './appearance'
 import { api, app, notify, errorText } from './context'
 import { pickImage } from './images'
 import { closeFolder, openFolder, quickOpen } from './library'
@@ -121,7 +121,7 @@ export const commands: Record<string, Cmd> = {
   ...choices(
     'theme',
     'Appearance',
-    THEMES,
+    THEMES.map((id) => ({ id, name: label(id) })),
     (id) => app.settings.theme === id,
     (id) => set('theme', id)
   ),

@@ -5,7 +5,7 @@ import { join } from 'path'
 import { pathToFileURL } from 'url'
 import { isImagePath } from '../shared/files'
 import { movedOpenFile, refreshFiles, registerIpc, trustPath } from './ipc'
-import { scan, watchFolders } from './library'
+import { scan } from './library'
 import { followAppearanceInDock } from './dock'
 import { buildMenu } from './menu'
 import { onSettingChange, settings } from './settings'
@@ -20,7 +20,8 @@ protocol.registerSchemesAsPrivileged([
 
 onSettingChange((key) => {
   if (key === 'theme') nativeTheme.themeSource = settings.theme
-  buildMenu(settings, send)
+  // The menu shows ticks for these; folders, Open Files and the window position aren't in it.
+  if (!(['folders', 'files', 'window'] as (keyof typeof settings)[]).includes(key)) buildMenu(settings, send)
   sendToRenderer('settings', settings)
 })
 
@@ -65,7 +66,7 @@ app.whenReady().then(() => {
   })
   // The window first, so a missing folder can never stop Typr opening.
   if (!getWindow()) createWindow()
-  watchFolders(settings.folders, refreshFiles)
+  void refreshFiles()
 })
 
 app.on('before-quit', () => setQuitting(true))

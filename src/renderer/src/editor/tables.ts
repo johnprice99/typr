@@ -2,21 +2,29 @@ import { EditorSelection, EditorState, Extension, Prec, Range, StateField } from
 import { Decoration, DecorationSet, EditorView, KeyBinding, keymap, WidgetType } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
+import { touched } from './syntax'
 
 // Tables: rendered as a real table in the formatted view, and edited as
 // Markdown when the cursor is in them, with Tab / ⇧Tab moving between cells.
 
-const escape = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
+const ENTITIES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }
+const escape = (s: string): string => s.replace(/[&<>"]/g, (c) => ENTITIES[c])
 
-/** Just enough inline Markdown for table cells. */
-function inline(md: string): string {
-  return escape(md)
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*|__([^_]+)__/g, (_m, a, b) => `<strong>${a ?? b}</strong>`)
-    .replace(/\*([^*]+)\*|_([^_]+)_/g, (_m, a, b) => `<em>${a ?? b}</em>`)
+/**
+ * Just enough inline Markdown for table cells. Everything is escaped first; code
+ * is set aside so nothing inside it is formatted, and "_" only counts at word
+ * edges (so snake_case_names stay as they are).
+ */
+export function inline(md: string): string {
+  const code: string[] = []
+  return escape(md.replace(/\\\|/g, '|'))
+    .replace(/`([^`]+)`/g, (_m, c: string) => `\u0000${code.push(c) - 1}\u0000`)
+    .replace(/\*\*([^*]+)\*\*|(?<!\w)__([^_]+)__(?!\w)/g, (_m, a, b) => `<strong>${a ?? b}</strong>`)
+    .replace(/\*([^*]+)\*|(?<!\w)_([^_]+)_(?!\w)/g, (_m, a, b) => `<em>${a ?? b}</em>`)
     .replace(/~~([^~]+)~~/g, '<s>$1</s>')
     .replace(/&lt;u&gt;(.+?)&lt;\/u&gt;/g, '<u>$1</u>')
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '<span class="md-link">$1</span>')
+    .replace(/\u0000(\d+)\u0000/g, (_m, i: string) => `<code>${code[Number(i)]}</code>`)
 }
 
 export function splitRow(line: string): string[] {
@@ -27,14 +35,12 @@ export function splitRow(line: string): string[] {
 }
 
 class TableWidget extends WidgetType {
-  constructor(
-    readonly source: string,
-    readonly from: number
-  ) {
+  constructor(readonly source: string) {
     super()
   }
+  // Not its position: typing above a table mustn't redraw it.
   eq(other: TableWidget): boolean {
-    return other.source === this.source && other.from === this.from
+    return other.source === this.source
   }
   toDOM(view: EditorView): HTMLElement {
     const [head, rule, ...body] = this.source.split('\n')
@@ -58,7 +64,7 @@ class TableWidget extends WidgetType {
     // Clicking the table starts editing it.
     wrap.addEventListener('mousedown', (e) => {
       e.preventDefault()
-      const start = this.from + (this.source.startsWith('|') ? 2 : 0)
+      const start = view.posAtDOM(wrap) + (this.source.startsWith('|') ? 2 : 0)
       view.dispatch({ selection: { anchor: start } })
       view.focus()
     })
@@ -90,11 +96,10 @@ function findTables(state: EditorState): TableSpan[] {
 }
 
 function render(state: EditorState, tables: TableSpan[]): DecorationSet {
-  const ranges = state.selection.ranges
   const out: Range<Decoration>[] = []
   for (const { from, to } of tables) {
-    if (ranges.some((r) => r.from <= to && r.to >= from)) continue // being edited: show the Markdown
-    out.push(Decoration.replace({ widget: new TableWidget(state.sliceDoc(from, to), from), block: true }).range(from, to))
+    if (touched(state, from, to)) continue // being edited: show the Markdown
+    out.push(Decoration.replace({ widget: new TableWidget(state.sliceDoc(from, to)), block: true }).range(from, to))
   }
   return Decoration.set(out)
 }

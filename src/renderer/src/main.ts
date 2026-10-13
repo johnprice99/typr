@@ -20,7 +20,7 @@ app.editor = createEditor($('editor'), {
   onChange: session.scheduleSave,
   onSelection: scheduleStats,
   follow,
-  imageUrl: (href) => imageSrc(href, session.docDir() ?? '/'),
+  imageUrl: (href) => imageSrc(href, session.hereDir() ?? '/'),
   editComment: (c) => promptComment(c),
   insertFiles
 })
@@ -51,12 +51,14 @@ window.addEventListener('blur', () => document.body.classList.remove('cmd'))
 const testHook = { view: app.editor.view, commands: 0, ready: false }
 if (api.testing) Object.assign(window, { typr: testHook })
 
+const shown = (e: unknown): void => notify(errorText(e))
+
 /** Runs a command, showing any failure rather than failing silently. */
 function run(id: string, path?: string): void {
   if ((id === 'undo' || id === 'redo') && (isPaletteOpen() || isPanelOpen())) return
   Promise.resolve()
     .then(() => commands[id]?.run(path))
-    .catch((e) => notify(errorText(e)))
+    .catch(shown)
 }
 
 async function start(): Promise<void> {
@@ -77,14 +79,14 @@ async function start(): Promise<void> {
     drawSidebar()
   })
   api.onSettings(applySettings)
-  api.onOpen((p) => session.open(p))
+  api.onOpen((p) => void session.open(p).catch(shown))
   api.onCommand(({ id, path }) => {
     run(id, path)
     testHook.commands++
   })
-  api.onFileChanged((p) => session.fileChanged(p))
-  api.onFileMoved(session.fileMoved)
-  api.onFileGone(session.fileGone)
+  api.onFileChanged((p) => void session.fileChanged(p).catch(shown))
+  api.onFileMoved((from, to) => void session.fileMoved(from, to).catch(shown))
+  api.onFileGone((p) => void session.fileGone(p).catch(shown))
   api.onFlush(async () => {
     // A new document with nowhere to go can't be saved without asking, and
     // quitting shouldn't open a picker: say so, and let the main process ask
@@ -92,14 +94,15 @@ async function start(): Promise<void> {
     if (session.needsAPlace()) return api.flushed(false, session.title())
     let saved = false
     try {
-      saved = await session.leave()
+      saved = await session.flush()
     } finally {
       api.flushed(saved, session.title())
     }
   })
 
-  for (const p of init.pendingOpen) await session.open(p)
+  for (const p of init.pendingOpen) await session.open(p).catch(shown)
+  for (const { id, path } of init.pendingCommands) run(id, path)
   testHook.ready = true
 }
 
-void start()
+void start().catch(shown)

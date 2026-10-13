@@ -56,10 +56,16 @@ export async function locate(path: string): Promise<string | null> {
   const dir = dirname(path)
   const siblings = (await readdir(dir).catch(() => [] as string[])).map((f) => join(dir, f))
   const elsewhere = (await events?.candidates()) ?? []
-  for (const p of [...siblings, ...elsewhere]) {
-    if (isTextPath(p) && (await stat(p).catch(() => null))?.ino === ino) return p
-  }
-  return null
+  const candidates = [...new Set([...siblings, ...elsewhere])].filter(isTextPath)
+  const inodes = await Promise.all(
+    candidates.map((p) =>
+      stat(p).then(
+        (s) => s.ino,
+        () => 0
+      )
+    )
+  )
+  return candidates[inodes.indexOf(ino)] ?? null
 }
 
 /** Our own rename: keep watching under the new name without reporting a move. */

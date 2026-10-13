@@ -4,6 +4,7 @@ import { testing } from './setup'
 import { saveSettings, settings, updateSetting } from './settings'
 import { watchCurrent } from './watcher'
 import type { Events, FlushedArgs } from '../shared/ipc'
+import { isExternalUrl } from '../shared/paths'
 import type { Command, Settings } from '../shared/types'
 
 // Typr has a single window. Commands sent while it's closed bring back a fresh one.
@@ -13,6 +14,7 @@ let win: BrowserWindow | null = null
 let rendererReady = false
 let flushResolve: ((...args: FlushedArgs) => void) | null = null
 const pendingOpens: string[] = []
+const pendingCommands: Command[] = []
 let quitting = false
 
 /** Set when the app is quitting (⌘Q), cleared if the user decides not to. */
@@ -23,9 +25,11 @@ export const isQuitting = (): boolean => quitting
 
 export const getWindow = (): BrowserWindow | null => win
 
+/** Sends a menu command; with no window (or one still starting), it's run once a new one is ready. */
 export function send(cmd: Command): void {
-  if (!win) return createWindow()
-  sendToRenderer('command', cmd)
+  if (win && rendererReady) return sendToRenderer('command', cmd)
+  pendingCommands.push(cmd)
+  if (!win) createWindow()
 }
 
 export function sendToRenderer<K extends keyof Events>(channel: K, ...args: Events[K]): void {
@@ -39,22 +43,24 @@ export function openFromOS(path: string): void {
   if (!win) createWindow()
 }
 
-export function takePendingOpens(): string[] {
+/** What the OS or the menu asked for before the window was ready. */
+export function takePending(): { pendingOpen: string[]; pendingCommands: Command[] } {
   rendererReady = true
-  return pendingOpens.splice(0)
+  return { pendingOpen: pendingOpens.splice(0), pendingCommands: pendingCommands.splice(0) }
 }
 
 export function flushed(...args: FlushedArgs): void {
   flushResolve?.(...args)
 }
 
-/** The saved window position, if it's still on a connected screen. */
+/** The saved window position, if its title bar is still on a connected screen (so it can be dragged). */
 function savedBounds(): Settings['window']['bounds'] {
   const b = settings.window.bounds
   if (!b) return undefined
-  const visible = screen
-    .getAllDisplays()
-    .some(({ workArea: a }) => b.x < a.x + a.width && b.x + b.width > a.x && b.y < a.y + a.height && b.y + b.height > a.y)
+  const visible = screen.getAllDisplays().some(({ workArea: a }) => {
+    const across = Math.min(b.x + b.width, a.x + a.width) - Math.max(b.x, a.x)
+    return across >= 100 && b.y >= a.y - 8 && b.y + 40 <= a.y + a.height
+  })
   return visible ? b : undefined
 }
 
@@ -145,7 +151,7 @@ export function createWindow(): void {
   })
 
   w.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:/i.test(url)) shell.openExternal(url)
+    if (isExternalUrl(url)) shell.openExternal(url)
     return { action: 'deny' }
   })
   w.webContents.on('will-navigate', (e) => e.preventDefault())

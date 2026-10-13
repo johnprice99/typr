@@ -1,7 +1,6 @@
 import { nativeTheme } from 'electron'
 import { normalizeSettings } from '../shared/settings'
 import { refreshFiles, resetSession } from './ipc'
-import { watchFolders } from './library'
 import { buildMenu } from './menu'
 import { saveSettings, settings } from './settings'
 import { watchCurrent } from './watcher'
@@ -17,7 +16,7 @@ export function installTestHooks(): void {
       saveSettings()
       resetSession()
       watchCurrent(null)
-      watchFolders(settings.folders, refreshFiles)
+      void refreshFiles()
       nativeTheme.themeSource = settings.theme
       buildMenu(settings, send)
       const win = getWindow()

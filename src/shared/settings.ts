@@ -14,7 +14,7 @@ export function stepScale(current: number, by: 1 | -1): number {
   const i = TEXT_SCALES.indexOf(nearestScale(current))
   return TEXT_SCALES[Math.max(0, Math.min(TEXT_SCALES.length - 1, i + by))]
 }
-const THEMES: Theme[] = ['system', 'light', 'dark']
+export const THEMES: Theme[] = ['system', 'light', 'dark']
 export const FOCUS_MODES: FocusMode[] = ['off', 'paragraph', 'sentence']
 
 const oneOf = <T>(value: unknown, allowed: T[], fallback: T): T => (allowed.includes(value as T) ? (value as T) : fallback)

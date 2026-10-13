@@ -1,6 +1,6 @@
 import './setup'
 import { app } from 'electron'
-import { mkdirSync, readFileSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, renameSync } from 'fs'
 import { dirname, join } from 'path'
 import type { Settings } from '../shared/types'
 import { normalizeSettings } from '../shared/settings'
@@ -16,7 +16,13 @@ function load(): Settings {
     const parsed = JSON.parse(readFileSync(settingsPath(), 'utf8'))
     if (parsed && typeof parsed === 'object') saved = parsed
   } catch {
-    // First launch, or an unreadable file: start from defaults.
+    // First launch, or an unreadable file: start from defaults, keeping a bad
+    // file aside (rather than overwriting it) in case it was edited by hand.
+    try {
+      if (existsSync(settingsPath())) renameSync(settingsPath(), settingsPath().replace(/\.json$/, ' (unreadable).json'))
+    } catch {
+      // Nothing more to do.
+    }
   }
   return normalizeSettings(saved)
 }

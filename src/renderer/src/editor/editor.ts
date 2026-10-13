@@ -7,7 +7,7 @@ import { syntaxHighlighting } from '@codemirror/language'
 import { searchKeymap } from '@codemirror/search'
 import { markdownHighlight, refreshMarks } from './markdown'
 import { layout } from './layout'
-import { frontmatterLines, frontmatterSyntax } from './frontmatter'
+import { frontmatterLines, frontmatterRange, frontmatterSyntax } from './frontmatter'
 import { Comment, commentsField } from './comments'
 import { insertTable, tableKeys } from './tables'
 import { focusMode } from './focus'
@@ -151,7 +151,10 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): Editor {
   return {
     view,
     setDoc(text) {
-      view.setState(EditorState.create({ doc: text, extensions: extensions() }))
+      // The cursor starts below any front matter, so it opens as the Properties box.
+      const state = EditorState.create({ doc: text, extensions: extensions() })
+      const front = frontmatterRange(state)
+      view.setState(front ? state.update({ selection: { anchor: Math.min(front.to + 1, text.length) } }).state : state)
       view.scrollDOM.scrollTop = 0
       view.focus()
     },

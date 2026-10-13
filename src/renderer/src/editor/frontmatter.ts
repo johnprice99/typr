@@ -1,8 +1,9 @@
 import { EditorState, Extension, Prec, StateField } from '@codemirror/state'
-import { Decoration, DecorationSet, EditorView, keymap, ViewPlugin, ViewUpdate, WidgetType } from '@codemirror/view'
+import { Decoration, DecorationSet, EditorView, keymap, WidgetType } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import { tags as t } from '@lezer/highlight'
 import type { BlockContext, Line, MarkdownConfig } from '@lezer/markdown'
+import { decorations, touched } from './syntax'
 
 // Front matter: the "---" block of properties (title, summary…) at the top of
 // many Markdown files. Markdown itself doesn't know about it, and would read it
@@ -29,7 +30,10 @@ export const frontmatterSyntax: MarkdownConfig = {
         const input = (cx as unknown as { input?: Input }).input
         if (!input || typeof input.read !== 'function') return false
         const head = input.read(0, Math.min(input.length, 64 * 1024))
-        const close = /\n((?:---|\.\.\.)[ \t]*)(?=\n|$)/.exec(head)
+        // (The end of the text counts as a line end, but not where the 64 KB read was cut.)
+        const close = (head.length === input.length ? /\n((?:---|\.\.\.)[ \t]*)(?=\n|$)/ : /\n((?:---|\.\.\.)[ \t]*)(?=\n)/).exec(
+          head
+        )
         if (!close) return false
         const closeFrom = close.index + 1
         const closeTo = closeFrom + close[1].length
@@ -130,8 +134,7 @@ class PropertiesWidget extends WidgetType {
 function build(state: EditorState): DecorationSet {
   const range = frontmatterRange(state)
   if (!range) return Decoration.none
-  const editing = state.selection.ranges.some((r) => r.from <= range.to && r.to >= range.from)
-  if (editing) return Decoration.none
+  if (touched(state, range.from, range.to)) return Decoration.none
   const firstLineEnd = state.doc.lineAt(range.from).to
   const lastLineStart = state.doc.lineAt(range.to).from
   const yaml = lastLineStart - 1 > firstLineEnd ? state.sliceDoc(firstLineEnd + 1, lastLineStart - 1) : ''
@@ -155,18 +158,7 @@ function styleLines(state: EditorState): DecorationSet {
   return Decoration.set(out)
 }
 
-export const frontmatterLines: Extension = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet
-    constructor(view: EditorView) {
-      this.decorations = styleLines(view.state)
-    }
-    update(u: ViewUpdate): void {
-      if (u.docChanged || syntaxTree(u.startState) !== syntaxTree(u.state)) this.decorations = styleLines(u.state)
-    }
-  },
-  { decorations: (v) => v.decorations }
-)
+export const frontmatterLines: Extension = decorations((view) => styleLines(view.state))
 
 /** ↑ from the line below the Properties box steps into it (a box is otherwise skipped). */
 function arrowUpInto(view: EditorView): boolean {

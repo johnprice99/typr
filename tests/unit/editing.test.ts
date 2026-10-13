@@ -63,6 +63,40 @@ describe('formatting commands', () => {
     expect(e.text()).toBe('a *word* here')
   })
 
+  it('across lines, wraps each line on its own, after list and quote markers', () => {
+    const e = editor('- one\n- two\n\n> three', 0, '- one\n- two\n\n> three'.length)
+    toggleWrap('**')(e.view as never)
+    expect(e.text()).toBe('- **one**\n- **two**\n\n> **three**')
+    toggleWrap('**')(e.view as never)
+    expect(e.text()).toBe('- one\n- two\n\n> three')
+  })
+
+  it('unwraps when the markers are selected too, rather than doubling them', () => {
+    const bold = editor('a **word** here', 2, 10)
+    toggleWrap('**')(bold.view as never)
+    expect(bold.text()).toBe('a word here')
+    const u = editor('a <u>word</u> here', 2, 13)
+    toggleWrap('<u>', '</u>')(u.view as never)
+    expect(u.text()).toBe('a word here')
+    // ⌘I on selected bold adds italic; it doesn't strip a star from each side.
+    const it = editor('**bold**', 0, 8)
+    toggleWrap('*')(it.view as never)
+    expect(it.text()).toBe('***bold***')
+  })
+
+  it('two formatted spans selected together are not taken for one', () => {
+    const e = editor('*a* and *b*', 0, 11)
+    toggleWrap('*')(e.view as never)
+    expect(e.text()).not.toBe('a* and *b')
+  })
+
+  it('with just a cursor, puts the cursor between the new markers', () => {
+    const e = editor('a  b', 2)
+    toggleWrap('**')(e.view as never)
+    expect(e.text()).toBe('a **** b')
+    expect(e.state().selection.main.head).toBe(4)
+  })
+
   it('tells italic from bold: ⌘I inside bold gives bold italic, and back', () => {
     const e = editor('**bold**', 2, 6)
     toggleWrap('*')(e.view as never)

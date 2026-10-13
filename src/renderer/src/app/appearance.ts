@@ -1,12 +1,13 @@
+import { stepScale } from '../../../shared/settings'
 import type { FocusMode, Settings } from '../../../shared/types'
 import { api, app, notify } from './context'
 
 // Applying settings to the page, and the small helpers commands use to change them.
 
+export { FOCUS_MODES as FOCUS, THEMES } from '../../../shared/settings'
+
 export const set = <K extends keyof Settings>(key: K, value: Settings[K]): Promise<void> => api.setSetting(key, value)
 
-export { FOCUS_MODES as FOCUS } from '../../../shared/settings'
-import { stepScale } from '../../../shared/settings'
 export const label = (s: string): string => s[0].toUpperCase() + s.slice(1)
 
 /** Text size one step bigger or smaller (⌘+ / ⌘−), or back to normal (⌘0). */
@@ -27,13 +28,11 @@ export function applySettings(next: Settings): void {
   const { editor } = app
   const body = document.body
   body.classList.toggle('sidebar-open', next.sidebar)
-  body.classList.toggle('fullscreen', next.fullscreen)
   body.style.setProperty('--scale', String(next.textScale))
   body.classList.toggle('live', !next.showMarkdown)
-  if (!prev || prev.showMarkdown !== next.showMarkdown) {
-    editor.setLive(!next.showMarkdown)
-    void document.fonts.ready.then(() => editor.refreshLayout())
-  }
+  const liveChanged = !prev || prev.showMarkdown !== next.showMarkdown
+  if (liveChanged) editor.setLive(!next.showMarkdown)
   if (!prev || prev.focus !== next.focus) editor.setFocusMode(next.focus)
-  if (prev && prev.textScale !== next.textScale) void document.fonts.ready.then(() => editor.refreshLayout())
+  // Hanging markers are measured in the real font and size.
+  if (liveChanged || prev.textScale !== next.textScale) void document.fonts.ready.then(() => editor.refreshLayout())
 }

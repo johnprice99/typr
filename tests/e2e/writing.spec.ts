@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'fs'
+import { chmodSync, existsSync, lstatSync, readFileSync, renameSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { expect, settle, test } from './fixtures'
 
@@ -224,5 +224,87 @@ test.describe('fixes from the second review', () => {
     await settle(t.page)
     expect(t.ls()).toEqual([])
     expect(await t.text()).toBe('')
+  })
+})
+
+test.describe('fixes from the third review', () => {
+  test('saving a symlinked document changes the file it points to, and keeps the link', async ({ launch }) => {
+    const t = await launch()
+    const real = join(t.outside, 'Real.md')
+    writeFileSync(real, 'real words')
+    symlinkSync(real, join(t.lib, 'Link.md'))
+    await t.open(join(t.lib, 'Link.md'))
+    await expect(t.page.locator('#title')).toHaveText('Link')
+    await t.select((await t.text()).length)
+    await t.page.keyboard.insertText(' and more')
+    await settle(t.page)
+    expect(readFileSync(real, 'utf8')).toBe('real words and more')
+    expect(lstatSync(join(t.lib, 'Link.md')).isSymbolicLink()).toBe(true)
+  })
+
+  test('saving keeps a file’s permissions', async ({ launch }) => {
+    const t = await launch({ files: { 'Shared.md': 'team notes' } })
+    chmodSync(join(t.lib, 'Shared.md'), 0o664)
+    await t.open(join(t.lib, 'Shared.md'))
+    await expect(t.page.locator('#title')).toHaveText('Shared')
+    await t.select((await t.text()).length)
+    await t.page.keyboard.insertText('!')
+    await settle(t.page)
+    expect(t.read('Shared.md')).toBe('team notes!')
+    expect(statSync(join(t.lib, 'Shared.md')).mode & 0o777).toBe(0o664)
+  })
+
+  test('mixed line endings don’t make a “changed elsewhere” copy', async ({ launch }) => {
+    const t = await launch({ files: { 'Mixed.md': 'one\r\ntwo\nthree' } })
+    await t.open(join(t.lib, 'Mixed.md'))
+    await expect(t.page.locator('#title')).toHaveText('Mixed')
+    await t.select((await t.text()).length)
+    await t.page.keyboard.insertText(' four')
+    await settle(t.page)
+    expect(t.ls()).toEqual(['Mixed.md'])
+    expect(t.read('Mixed.md').replace(/\r/g, '')).toBe('one\ntwo\nthree four')
+  })
+
+  test('a file that isn’t UTF-8 is refused rather than corrupted', async ({ launch }) => {
+    const t = await launch({ files: { 'Latin.txt': Buffer.from([0x63, 0x61, 0x66, 0xe9]) } })
+    await t.open(join(t.lib, 'Latin.txt'))
+    await expect(t.page.locator('#toast')).toContainText('isn’t UTF-8')
+    await expect(t.page.locator('#title')).toHaveText('Untitled')
+    expect(readFileSync(join(t.lib, 'Latin.txt'))).toEqual(Buffer.from([0x63, 0x61, 0x66, 0xe9]))
+  })
+
+  test('a new document doesn’t stay tied to a folder you close', async ({ launch }) => {
+    const t = await launch()
+    await t.command('new')
+    await t.command('close-folder')
+    await expect(t.page.locator('#toast')).toContainText('Closed')
+    await t.page.keyboard.insertText('Homeless words')
+    // It asks where to save (rather than failing to save into the closed folder).
+    await t.command('save')
+    await expect(t.page.locator('.palette input')).toHaveAttribute('placeholder', 'Save this document in…')
+    await t.page.keyboard.press('Escape')
+    expect(t.ls()).toEqual([])
+  })
+
+  test('a document with front matter opens showing its Properties box', async ({ launch }) => {
+    const t = await launch({ files: { 'Story.md': '---\ntitle: The Beast\n---\n\n# Chapter 1\n\nText.' } })
+    await t.open(join(t.lib, 'Story.md'))
+    await expect(t.page.locator('.md-properties')).toBeVisible()
+    await expect(t.page.locator('.md-prop-value')).toHaveText(['The Beast'])
+  })
+
+  test('Back after a draft renamed itself on the way out still returns to it', async ({ launch }) => {
+    const t = await launch({ files: { 'Other.md': 'other' } })
+    await t.command('new')
+    await t.page.keyboard.insertText('Hello')
+    await settle(t.page)
+    await t.page.keyboard.insertText(' world')
+    // Leave before the autosave: leaving saves, and renames it "Hello world".
+    await t.open(join(t.lib, 'Other.md'))
+    await expect(t.page.locator('#title')).toHaveText('Other')
+    await t.command('back')
+    await expect(t.page.locator('#title')).toHaveText('Hello world')
+    await t.command('forward')
+    await expect(t.page.locator('#title')).toHaveText('Other')
   })
 })

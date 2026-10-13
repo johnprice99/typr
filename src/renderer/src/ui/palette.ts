@@ -1,3 +1,5 @@
+import { claimOverlay, releaseOverlay } from './overlay'
+
 export interface PaletteItem {
   label: string
   detail?: string
@@ -86,6 +88,7 @@ function shell(
     if (!overlay.isConnected) return
     overlay.remove()
     active = null
+    releaseOverlay(dismiss)
     for (const cb of closeListeners) cb()
     if (!picked) onCancel?.()
   }
@@ -93,7 +96,9 @@ function shell(
     if (e.target === overlay) close()
   })
   input.addEventListener('blur', () => setTimeout(() => document.activeElement !== input && close(), 0))
-  active = { close: () => close() }
+  const dismiss = (): void => close()
+  active = { close: dismiss }
+  claimOverlay(dismiss)
   setTimeout(() => input.focus())
   return { input, list, close }
 }
@@ -111,12 +116,13 @@ export function openList(opts: ListOptions): void {
         .filter((x): x is { item: PaletteItem; s: number } => x.s !== null)
         .sort((a, b) => b.s - a.s)
         .map((x) => x.item)
+      // The fallback (e.g. "New document") always stays visible, however many match.
       const extra = opts.fallback?.(q)
+      shown = shown.slice(0, extra ? 59 : 60)
       if (extra) shown.push(extra)
     } else {
-      shown = opts.items
+      shown = opts.items.slice(0, 60)
     }
-    shown = shown.slice(0, 60)
     selected = Math.min(selected, Math.max(0, shown.length - 1))
     list.replaceChildren(
       ...shown.map((item, i) => {

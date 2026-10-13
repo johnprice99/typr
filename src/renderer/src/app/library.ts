@@ -2,7 +2,7 @@ import { basename, dirname, isInside, join, relativeTo, stem, tildify } from '..
 import { openList } from '../ui/palette'
 import { renderSidebar } from '../ui/sidebar'
 import { $, api, app, notify } from './context'
-import { closeDoc, current, forgetRecentsIn, open, openNamed, recents } from './session'
+import { closeDoc, current, folderMoved, forgetRecentsIn, open, openNamed, recents } from './session'
 
 // Open folders: the sidebar, opening and closing folders, Go to File, and
 // asking where a new document should go.
@@ -20,17 +20,18 @@ export async function openFolder(): Promise<string | null> {
  * Closes a folder (asking which, if there are several). If the open document is
  * in it, that's closed too (saved first). Nothing on disk changes.
  */
-export function closeFolder(path?: string): void {
+export async function closeFolder(path?: string): Promise<void> {
   const close = async (p: string): Promise<void> => {
     const doc = current().path
     if (doc && isInside(doc, p) && !(await closeDoc())) return
     await api.closeFolder(p)
+    folderMoved(p, null)
     forgetRecentsIn(p)
     notify(`Closed “${basename(p)}”`)
   }
-  if (path) return void close(path)
+  if (path) return close(path)
   if (!app.folders.length) return notify('No folders are open')
-  if (app.folders.length === 1) return void close(app.folders[0].path)
+  if (app.folders.length === 1) return close(app.folders[0].path)
   openList({
     placeholder: 'Close which folder?',
     items: app.folders.map((f) => ({ label: basename(f.path), detail: tildify(f.path), run: () => close(f.path) }))
@@ -44,7 +45,15 @@ export function chooseWhere(): Promise<string | null> {
       placeholder: 'Save this document in…',
       items: [
         ...app.folders.map((f) => ({ label: basename(f.path), detail: tildify(f.path), run: () => resolve(f.path) })),
-        { label: 'Choose a folder…', detail: 'Opens it in the sidebar too', run: async () => resolve(await openFolder()) }
+        {
+          label: 'Choose a folder…',
+          detail: 'Opens it in the sidebar too',
+          run: () =>
+            openFolder().then(resolve, (e) => {
+              resolve(null)
+              throw e
+            })
+        }
       ],
       onCancel: () => resolve(null)
     })
@@ -55,11 +64,11 @@ let drawn = ''
 
 /** Redraws the sidebar, but only if something it shows has changed. */
 export function drawSidebar(): void {
-  const doc = current()
-  const key = `${doc?.path ?? ''}\n${JSON.stringify(app.folders)}\n${app.openFiles.join('\n')}`
+  const path = current().path
+  const key = `${path ?? ''}\n${JSON.stringify(app.folders)}\n${app.openFiles.join('\n')}`
   if (key === drawn) return
   drawn = key
-  renderSidebar($('sidebar'), app.folders, app.openFiles, doc?.path ?? null, {
+  renderSidebar($('sidebar'), app.folders, app.openFiles, path, {
     open: (path) => open(path),
     menu: (path, isDir) => api.itemMenu(path, isDir),
     openFolder: () => void openFolder(),
@@ -73,8 +82,8 @@ export function quickOpen(): void {
     ...app.folders.flatMap((f) => f.entries.filter((e) => !e.endsWith('/')).map((e) => join(f.path, e))),
     ...app.openFiles
   ]
-  const inFolders = new Set(docs)
-  const all = [...new Set([...recents().filter((p) => inFolders.has(p)), ...docs])].filter((p) => p !== current().path)
+  const listed = new Set(docs)
+  const all = [...new Set([...recents().filter((p) => listed.has(p)), ...docs])].filter((p) => p !== current().path)
   const where = (p: string): string => {
     const folder = folderOf(p)
     if (!folder) return tildify(dirname(p))

@@ -37,15 +37,20 @@ export interface InitialState {
   files: string[]
   /** Absolute paths the OS asked us to open before the window was ready. */
   pendingOpen: string[]
+  /** Menu commands chosen while no window was open. */
+  pendingCommands: Command[]
   version: string
 }
 
-export interface WriteResult {
-  /** Where it was written: the same path, or the file's new place if it was moved. */
-  path: string
-  /** A copy holding another app's changes, if there were any. */
-  copy: string | null
-}
+export type WriteResult =
+  | {
+      /** Where it was written: the same path, or the file's new place if it was moved. */
+      path: string
+      /** A copy holding another app's changes, if there were any. */
+      copy: string | null
+    }
+  /** The file was deleted (not moved), so nothing was written. */
+  | { gone: true }
 
 /** A command sent from the main process (menus) to the renderer. */
 export interface Command {
@@ -62,7 +67,7 @@ export interface Api {
    * Overwrites an existing file. `expected` is what Typr believes is on disk; if
    * another app has changed the file since, its version is first kept as a
    * "(changed elsewhere)" copy. If the file was renamed or moved, it's written in
-   * its new place. Fails with ENOENT if it was deleted.
+   * its new place. Reports `gone` (writing nothing) if it was deleted.
    */
   write(path: string, content: string, expected: string): Promise<WriteResult>
   /** Creates a new, uniquely named file. Returns its absolute path. */
@@ -75,7 +80,6 @@ export interface Api {
   exists(path: string): Promise<boolean>
   openDialog(): Promise<string | null>
 
-  /** Shows a folder picker. Resolves true if a folder was chosen. */
   /** Shows the folder chooser and opens the chosen folder in the sidebar. Resolves its path, or null. */
   openFolder(): Promise<string | null>
   /** Removes a folder from the sidebar (nothing on disk changes). */

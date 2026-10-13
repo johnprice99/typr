@@ -63,6 +63,13 @@ describe('the live comment list', () => {
     expect(listComments(state).map((c) => c.note)).toEqual(['note'])
   })
 
+  it('notices a comment made by deleting a blank line', () => {
+    let state = parsed(make('{==a\n\nb==}{>>note<<}'))
+    expect(listComments(state)).toHaveLength(0)
+    state = state.update({ changes: { from: 4, to: 5 } }).state
+    expect(listComments(state).map((c) => c.note)).toEqual(['note'])
+  })
+
   it('ignores comment markup inside code', () => {
     const state = parsed(make('Real {==one==}{>>yes<<}\n\n`{==code==}{>>no<<}`\n\n```\n{==block==}{>>no<<}\n```'))
     expect(listComments(state).map((c) => c.note)).toEqual(['yes'])

@@ -1,5 +1,6 @@
 import type { FolderListing } from '../../../shared/types'
-import { basename, isInside, join, stem } from '../paths'
+import { basename, dirname, isInside, join, stem, tildify } from '../paths'
+import { readList } from '../storage'
 
 // The sidebar: each open folder as a section you can collapse, with its
 // subfolders and documents inside.
@@ -62,14 +63,15 @@ function makeReorderable(sections: HTMLElement[], paths: string[], reorder: (ord
 
 // Subfolders start collapsed and are remembered when you open them; the open
 // folders themselves (the sections) start open and are remembered when collapsed.
-const load = (key: string): Set<string> => new Set<string>(JSON.parse(localStorage.getItem(key) ?? '[]'))
-const expanded = load('typr.expanded')
-const collapsedRoots = load('typr.collapsedRoots')
+const expanded = new Set(readList('typr.expanded'))
+const collapsedRoots = new Set(readList('typr.collapsedRoots'))
 const persist = (): void => {
   localStorage.setItem('typr.expanded', JSON.stringify([...expanded]))
   localStorage.setItem('typr.collapsedRoots', JSON.stringify([...collapsedRoots]))
 }
 let roots = new Set<string>()
+/** The document whose folders were last opened up to show it. */
+let revealed: string | null = null
 const isCollapsed = (path: string): boolean => (roots.has(path) ? collapsedRoots.has(path) : !expanded.has(path))
 function toggle(path: string): void {
   if (roots.has(path)) {
@@ -123,22 +125,25 @@ export function renderSidebar(
   h: SidebarHandlers
 ): void {
   roots = new Set([...folders.map((f) => f.path), OPEN_FILES])
-  // Always show the way to the open file (within its open folder).
+  // Folders that were closed are forgotten, so the lists don't grow forever.
+  for (const p of expanded) if (!folders.some((f) => isInside(p, f.path))) expanded.delete(p)
+  for (const p of collapsedRoots) if (!roots.has(p)) collapsedRoots.delete(p)
+  // Show the way to a newly opened document (within its open folder); after
+  // that, folders stay as you left them.
   const root = current ? folders.find((f) => isInside(current, f.path))?.path : undefined
-  if (current && root) {
+  if (current && root && current !== revealed) {
     collapsedRoots.delete(root)
-    for (let d = current.slice(0, current.lastIndexOf('/')); d.length > root.length; d = d.slice(0, d.lastIndexOf('/'))) {
-      expanded.add(d)
-    }
-    persist()
+    for (let d = dirname(current); d.length > root.length; d = dirname(d)) expanded.add(d)
   }
+  revealed = current
+  persist()
 
   const row = (n: Node, depth: number, cls: string, label: string): HTMLDivElement => {
     const r = document.createElement('div')
     r.className = `${cls}${n.path === current ? ' current' : ''}${n.dir && isCollapsed(n.path) ? ' collapsed' : ''}`
     r.style.paddingLeft = `${12 + depth * 14}px`
     r.textContent = label
-    r.title = n.path.replace(/^\/Users\/[^/]+/, '~')
+    if (n.path !== OPEN_FILES) r.title = tildify(n.path)
     r.addEventListener('click', () => {
       if (!n.dir) return h.open(n.path)
       toggle(n.path)
@@ -179,18 +184,19 @@ export function renderSidebar(
     return
   }
 
-  const sections = folders.map((f) => {
-    const top = tree(f)
-    const section = document.createElement('section')
-    section.className = 'sidebar-folder'
-    section.append(row(top, 0, 'sidebar-header', top.name))
+  /** A collapsible section: a header, then its documents. */
+  const section = (top: Node, cls = ''): HTMLElement => {
+    const el = document.createElement('section')
+    el.className = `sidebar-folder${cls}`
     const body = top.children.length
       ? draw(top.children, 0)
       : Object.assign(document.createElement('p'), { className: 'sidebar-note', textContent: 'No documents yet' })
     if (isCollapsed(top.path)) body.classList.add('hidden')
-    section.append(body)
-    return section
-  })
+    el.append(row(top, 0, 'sidebar-header', top.name), body)
+    return el
+  }
+
+  const sections = folders.map((f) => section(tree(f)))
   if (folders.length > 1)
     makeReorderable(
       sections,
@@ -199,22 +205,9 @@ export function renderSidebar(
     )
 
   // Files opened from outside the folders, at the top for quick reopening.
-  const loose: HTMLElement[] = []
-  if (openFiles.length) {
-    const section = document.createElement('section')
-    section.className = 'sidebar-folder sidebar-open-files'
-    const header: Node = { name: 'Open Files', path: OPEN_FILES, dir: true, children: [] }
-    const files = openFiles.map((path): Node => ({ name: basename(path), path, dir: false, children: [] })).sort(byName)
-    section.append(row(header, 0, 'sidebar-header', 'Open Files'))
-    const ul = document.createElement('ul')
-    for (const f of files) {
-      const li = document.createElement('li')
-      li.append(row(f, 0, 'row file', stem(f.name)))
-      ul.append(li)
-    }
-    if (isCollapsed(OPEN_FILES)) ul.classList.add('hidden')
-    section.append(ul)
-    loose.push(section)
-  }
+  const files = openFiles.map((path): Node => ({ name: basename(path), path, dir: false, children: [] })).sort(byName)
+  const loose = files.length
+    ? [section({ name: 'Open Files', path: OPEN_FILES, dir: true, children: files }, ' sidebar-open-files')]
+    : []
   el.replaceChildren(...loose, ...sections)
 }

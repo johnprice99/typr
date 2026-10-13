@@ -1,16 +1,10 @@
 import iconLight from '../../../../resources/icon-light.png'
 import iconDark from '../../../../resources/icon-dark.png'
-import type { Theme } from '../../../shared/types'
+import { claimOverlay, releaseOverlay } from './overlay'
 
 // The About panel: small and centred, in the same style as the palette. Esc closes it.
 
-export const THEMES: { id: Theme; name: string }[] = [
-  { id: 'system', name: 'System' },
-  { id: 'light', name: 'Light' },
-  { id: 'dark', name: 'Dark' }
-]
-
-let open: { el: HTMLElement } | null = null
+let open: HTMLElement | null = null
 const closeListeners: (() => void)[] = []
 
 export const isPanelOpen = (): boolean => open !== null
@@ -21,8 +15,9 @@ export const onPanelClose = (cb: () => void): void => {
 
 function closePanel(): void {
   if (!open) return
-  open.el.remove()
+  open.remove()
   open = null
+  releaseOverlay(closePanel)
   for (const cb of closeListeners) cb()
 }
 
@@ -43,7 +38,8 @@ function shell(className: string): HTMLDivElement {
     }
   })
   document.body.append(overlay)
-  open = { el: overlay }
+  open = overlay
+  claimOverlay(closePanel)
   return box
 }
 

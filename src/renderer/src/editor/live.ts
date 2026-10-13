@@ -3,6 +3,7 @@ import { Decoration, DecorationSet, EditorView, WidgetType } from '@codemirror/v
 import { syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
 import { measure, px } from './markdown'
+import { touched } from './syntax'
 
 // Formatted view: the file stays plain Markdown, but its syntax is hidden and
 // rendered (headings, bold, links, bullets, checkboxes, images…). Wherever the
@@ -26,15 +27,12 @@ class BulletWidget extends WidgetType {
 }
 
 class CheckboxWidget extends WidgetType {
-  constructor(
-    readonly checked: boolean,
-    /** Position of the "[ ]" in the document. */
-    readonly at: number
-  ) {
+  constructor(readonly checked: boolean) {
     super()
   }
+  // Not its position: typing above a checklist mustn't redraw it.
   eq(other: CheckboxWidget): boolean {
-    return other.checked === this.checked && other.at === this.at
+    return other.checked === this.checked
   }
   toDOM(view: EditorView): HTMLElement {
     const s = document.createElement('span')
@@ -43,7 +41,11 @@ class CheckboxWidget extends WidgetType {
     s.setAttribute('aria-checked', String(this.checked))
     s.addEventListener('mousedown', (e) => {
       e.preventDefault()
-      view.dispatch({ changes: { from: this.at, to: this.at + 3, insert: this.checked ? '[ ]' : '[x]' } })
+      // The "[ ]" after the list marker this widget covers.
+      const line = view.state.doc.lineAt(view.posAtDOM(s))
+      const at = line.text.indexOf('[', view.posAtDOM(s) - line.from)
+      if (at < 0) return
+      view.dispatch({ changes: { from: line.from + at, to: line.from + at + 3, insert: this.checked ? '[ ]' : '[x]' } })
     })
     return s
   }
@@ -126,8 +128,7 @@ const LIST_INDENT = 1.75
 export function buildLive(view: EditorView, opts: LiveOptions): DecorationSet {
   const { state } = view
   const { doc } = state
-  const ranges = state.selection.ranges
-  const touches = (from: number, to: number): boolean => ranges.some((r) => r.from <= to && r.to >= from)
+  const touches = (from: number, to: number): boolean => touched(state, from, to)
   const lineOf = (pos: number) => doc.lineAt(pos)
   const lineTouched = (pos: number): boolean => {
     const l = lineOf(pos)
@@ -202,7 +203,7 @@ export function buildLive(view: EditorView, opts: LiveOptions): DecorationSet {
     let indent: string
     if (!ordered && !touches(mark.from, end)) {
       if (taskMarker) {
-        add(`w${mark.from}`, Decoration.replace({ widget: new CheckboxWidget(checked, taskMarker.from) }).range(mark.from, end))
+        add(`w${mark.from}`, Decoration.replace({ widget: new CheckboxWidget(checked) }).range(mark.from, end))
       } else {
         add(`w${mark.from}`, bullet.range(mark.from, end))
       }
