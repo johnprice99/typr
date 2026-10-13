@@ -35,7 +35,14 @@ npm run format      # format the code with Prettier
 
 End-to-end tests launch the app once, invisibly and without a Dock icon, and reset it with a throwaway library and settings before each test, so they never touch your documents, settings, clipboard or Recent Documents. The run stops after 5 minutes or 10 failures.
 
-Icons: `resources/icon-light.png` and `resources/icon-dark.png` are the Dock icons, swapped while Typr runs to match the appearance. `build/icon.icns` (made from the light one) is what Finder and Launchpad show. Packaged builds register `.md`, `.markdown` and `.txt`, so **Open With → Typr** works in Finder.
+Icons: `build/Typr.icon` (made in Icon Composer) is the app icon, which macOS shows in light, dark or tinted style to match your Mac; `build/icon.icns` is the fallback for older macOS. `resources/icon-light.png` and `resources/icon-dark.png` are used in the About panel, by the website, and as the Dock icon when running from source. Packaged builds register `.md`, `.markdown` and `.txt`, so **Open With → Typr** works in Finder.
+
+## Website
+
+`docs/` is a single static page (no build step) with a download link. To publish it with GitHub Pages: **Settings › Pages › Deploy from a branch › `main` / `docs`**. (On a free GitHub plan, Pages and release downloads need the repository to be public.)
+
+- **Download link:** points at `releases/latest/download/Typr-mac-arm64.dmg`, so it always gets the newest release. To publish one, make a GitHub release and attach `dist/Typr-mac-arm64.dmg` from `npm run dist`.
+- **Screenshots:** `npm run screenshots` retakes `docs/images/*.png` from the real app, using made-up sample documents (invisibly, like the tests).
 
 ## Keys
 
@@ -73,3 +80,4 @@ Fonts: the Mac's own. The formatted view uses the system font; the Markdown view
 - `src/renderer/src/editor/` — the CodeMirror editor and its features (formatted view, focus, find, tables, comments).
 - `src/renderer/src/ui/` — the palette, the about panel, and the library sidebar.
 - `tests/unit/` (Vitest) and `tests/e2e/` (Playwright).
+- `docs/` — the website; `scripts/screenshots.mjs` takes its screenshots.

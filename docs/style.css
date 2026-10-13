@@ -1,0 +1,266 @@
+/* The same colours and system fonts as the app itself. */
+:root {
+  --bg: #f7f7f5;
+  --raised: #ffffff;
+  --fg: #2a2a2a;
+  --dim: #6d6d6a;
+  --faint: #9a9a96;
+  --line: rgba(0, 0, 0, 0.08);
+  --accent: #10a2e8;
+  --accent-ink: #ffffff;
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.07);
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a1c;
+    --raised: #252528;
+    --fg: #e2e2e0;
+    --dim: #a2a2a0;
+    --faint: #6e6e72;
+    --line: rgba(255, 255, 255, 0.08);
+    --accent: #23a8ec;
+    --shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.09);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font:
+    17px/1.6 -apple-system,
+    BlinkMacSystemFont,
+    'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+code {
+  font:
+    0.9em ui-monospace,
+    Menlo,
+    monospace;
+}
+
+/* ---------- hero ---------- */
+
+.hero {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 96px 24px 56px;
+  text-align: center;
+}
+
+.icon img {
+  margin: 0 auto 20px;
+  width: 128px;
+  height: 128px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 56px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  margin: 8px 0 0;
+  font-size: 24px;
+  color: var(--dim);
+}
+
+.lede {
+  max-width: 34em;
+  margin: 24px auto 0;
+  color: var(--dim);
+}
+
+.download {
+  margin-top: 36px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 6px 20px rgba(16, 162, 232, 0.3);
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+.button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(16, 162, 232, 0.38);
+}
+.button:focus-visible {
+  outline: 3px solid var(--fg);
+  outline-offset: 3px;
+}
+.button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.fine {
+  margin: 14px 0 0;
+  font-size: 14px;
+  color: var(--faint);
+}
+
+/* ---------- screenshots, shown in a Mac window ---------- */
+
+main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+figure {
+  margin: 0;
+}
+
+/* Screenshots are of a 1280 px wide window, so sizes are in fractions of its width (cqw). */
+.window {
+  position: relative;
+  overflow: hidden;
+  container-type: inline-size;
+  border-radius: 1cqw;
+  background: var(--raised);
+  box-shadow: var(--shadow);
+}
+/* The window's buttons, where macOS draws them over the app's title bar. */
+.window::before {
+  content: '';
+  position: absolute;
+  top: 1.25cqw;
+  left: 1.25cqw;
+  width: 0.95cqw;
+  height: 0.95cqw;
+  border-radius: 50%;
+  background: #ff5f57;
+  box-shadow:
+    1.56cqw 0 0 #febc2e,
+    3.12cqw 0 0 #28c840;
+}
+
+.hero-shot {
+  margin-bottom: 96px;
+}
+
+/* ---------- features ---------- */
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 40px 48px;
+  margin-bottom: 112px;
+}
+
+.features h2 {
+  margin: 0 0 8px;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.features p {
+  margin: 0;
+  color: var(--dim);
+}
+
+/* ---------- gallery ---------- */
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 56px 40px;
+  margin-bottom: 112px;
+}
+
+figcaption {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 15px;
+  color: var(--dim);
+}
+
+/* ---------- install ---------- */
+
+.install {
+  max-width: 720px;
+  margin: 0 auto 96px;
+  padding: 32px 36px;
+  border-radius: 16px;
+  background: var(--raised);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.install h2 {
+  margin: 0 0 12px;
+  font-size: 22px;
+}
+
+.install ol {
+  margin: 0;
+  padding-left: 1.3em;
+}
+
+.install li + li {
+  margin-top: 10px;
+}
+
+/* ---------- footer ---------- */
+
+footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px 24px 48px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  color: var(--faint);
+}
+
+footer p {
+  margin: 0;
+}
+
+@media (max-width: 520px) {
+  .hero {
+    padding-top: 64px;
+  }
+  h1 {
+    font-size: 44px;
+  }
+  .tagline {
+    font-size: 20px;
+  }
+  .gallery {
+    grid-template-columns: 1fr;
+  }
+}

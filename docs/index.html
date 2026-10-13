@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Typr — a quiet Markdown editor for Mac</title>
+    <meta
+      name="description"
+      content="Typr is a free, minimal Markdown editor for Mac. Write in plain files, formatted as you type, with everything a keystroke away."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta property="og:title" content="Typr — a quiet Markdown editor for Mac" />
+    <meta
+      property="og:description"
+      content="Free and minimal. Plain Markdown files, formatted as you type, everything a keystroke away."
+    />
+    <meta property="og:image" content="images/writing-light.png" />
+    <link rel="icon" type="image/png" href="images/favicon.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <picture class="icon">
+        <source srcset="images/icon-dark.png" media="(prefers-color-scheme: dark)" />
+        <img src="images/icon-light.png" width="128" height="128" alt="The Typr app icon" />
+      </picture>
+      <h1>Typr</h1>
+      <p class="tagline">A quiet Markdown editor for Mac.</p>
+      <p class="lede">
+        Write stories and notes in plain Markdown files. Typr formats them as you type and gets out of the way, and you can do
+        everything from the keyboard.
+      </p>
+      <div class="download">
+        <!-- Points at the newest release's disk image (see README › Website). -->
+        <a class="button" href="https://github.com/johnprice99/typr/releases/latest/download/Typr-mac-arm64.dmg">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16" /></svg>
+          Download for Mac
+        </a>
+        <p class="fine">Free · Apple silicon (M1 or later) · macOS 12 or later</p>
+      </div>
+    </header>
+
+    <main>
+      <figure class="window hero-shot">
+        <picture>
+          <source srcset="images/writing-dark.png" media="(prefers-color-scheme: dark)" />
+          <img
+            src="images/writing-light.png"
+            width="2000"
+            height="1250"
+            alt="Typr showing a story with its folders in the sidebar"
+          />
+        </picture>
+      </figure>
+
+      <section class="features" aria-label="Features">
+        <article>
+          <h2>Formatted as you write</h2>
+          <p>
+            Headings, emphasis, lists, links, tables and images show as they will read. The Markdown appears only on the line
+            you're editing. Press ⌘E to see all of it.
+          </p>
+        </article>
+        <article>
+          <h2>Your files, your folders</h2>
+          <p>
+            Every document is a plain <code>.md</code> file in a folder you choose. Open as many folders as you like side by side.
+            Typr saves as you type and never leaves a file half written.
+          </p>
+        </article>
+        <article>
+          <h2>Keyboard first</h2>
+          <p>
+            Every command is in the palette (⇧⌘P), and ⌘P jumps to any document or creates one. The window stays clear: the chrome
+            fades while you type.
+          </p>
+        </article>
+        <article>
+          <h2>Comments that travel</h2>
+          <p>
+            Leave notes on your own drafts with ⇧⌘M. They're stored in the file as CriticMarkup, so they go wherever the file
+            goes, and you can find them all with Go to Comment.
+          </p>
+        </article>
+        <article>
+          <h2>Focus when you need it</h2>
+          <p>
+            Dim everything but the paragraph or sentence you're writing. Front matter shows as a small Properties box. Text size
+            follows ⌘+ and ⌘−.
+          </p>
+        </article>
+        <article>
+          <h2>Private by design</h2>
+          <p>
+            No account, no cloud and no tracking. Images from the internet aren't loaded until you click them, so opening a
+            document never tells anyone you did.
+          </p>
+        </article>
+      </section>
+
+      <section class="gallery" aria-label="Screenshots">
+        <figure>
+          <div class="window">
+            <img
+              src="images/comments.png"
+              width="2000"
+              height="1250"
+              loading="lazy"
+              alt="The Go to Comment list over a story with highlighted comments"
+            />
+          </div>
+          <figcaption>Comments live in the file. Go to Comment lists every note.</figcaption>
+        </figure>
+        <figure>
+          <div class="window">
+            <img
+              src="images/palette.png"
+              width="2000"
+              height="1250"
+              loading="lazy"
+              alt="The command palette listing commands and their shortcuts"
+            />
+          </div>
+          <figcaption>Every command, and its shortcut, one keystroke away.</figcaption>
+        </figure>
+        <figure>
+          <div class="window">
+            <img src="images/notes.png" width="2000" height="1250" loading="lazy" alt="A notes document with a checklist" />
+          </div>
+          <figcaption>Not just stories: notes, lists and checklists too.</figcaption>
+        </figure>
+        <figure>
+          <div class="window">
+            <img
+              src="images/focus-dark.png"
+              width="2000"
+              height="1250"
+              loading="lazy"
+              alt="Typr in dark mode with focus on the current paragraph"
+            />
+          </div>
+          <figcaption>Light or dark, following your Mac, with focus mode on.</figcaption>
+        </figure>
+      </section>
+
+      <section class="install" id="install">
+        <h2>Installing</h2>
+        <ol>
+          <li>Open the downloaded <strong>Typr-mac-arm64.dmg</strong> and drag Typr into Applications.</li>
+          <li>
+            Typr is free and isn't registered with Apple, so the first time you open it macOS says it can't check it. Click
+            <strong>Done</strong>, then go to <strong>System Settings › Privacy &amp; Security</strong>, scroll down and click
+            <strong>Open Anyway</strong>.
+          </li>
+          <li>From then on, Typr opens like any other app. Open a folder with ⇧⌘O and start writing.</li>
+        </ol>
+      </section>
+    </main>
+
+    <footer>
+      <picture>
+        <source srcset="images/icon-dark.png" media="(prefers-color-scheme: dark)" />
+        <img src="images/icon-light.png" width="28" height="28" alt="" />
+      </picture>
+      <p>Typr is free. Made by John Price.</p>
+    </footer>
+  </body>
+</html>

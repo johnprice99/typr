@@ -21,6 +21,10 @@ mac:
   # Hardened runtime is only needed for Apple notarisation; with ad-hoc signing
   # it blocks Electron's own (differently signed) frameworks from loading.
   hardenedRuntime: false
+dmg:
+  # A fixed name, so the website's download link (the newest release's
+  # Typr-mac-arm64.dmg) keeps working from one version to the next.
+  artifactName: ${productName}-mac-arm64.${ext}
 fileAssociations:
   - ext: [md, markdown]
     name: Markdown Document
