@@ -27,7 +27,14 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
   const template: MenuItemConstructorOptions[] = [
     {
       label: app.name,
-      submenu: [cmd(`About ${app.name}`, 'about'), sep, { role: 'hide' }, sep, { role: 'quit' }]
+      submenu: [
+        cmd(`About ${app.name}`, 'about'),
+        cmd('Check for Updates…', 'check-updates'),
+        sep,
+        { role: 'hide' },
+        sep,
+        { role: 'quit' }
+      ]
     },
     {
       label: 'File',

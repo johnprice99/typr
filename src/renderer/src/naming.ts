@@ -16,6 +16,21 @@ export function deriveName(text: string): string {
   return cleanName(body.split('\n').find((l) => l.trim()) ?? '')
 }
 
+/**
+ * Whether the line a new document is named after has been finished (Return
+ * pressed after it): until then, the name could still change with every key.
+ */
+export function nameSettled(text: string): boolean {
+  let body = stripComments(text)
+  if (body.startsWith('---\n')) {
+    const end = body.indexOf('\n---', 4)
+    if (end < 0) return false // still typing the front matter
+    if (/^title:\s*\S/m.test(body.slice(4, end))) return true
+    body = body.slice(end + 4).replace(/^[^\n]*\n?/, '') // the rest of the closing line
+  }
+  return /\S[^\n]*\n/.test(body)
+}
+
 const TRAILING = /[\s.,;:!?…]+$/
 
 /** Strips Markdown and characters that don't belong in a file name; at most ~60 characters. */

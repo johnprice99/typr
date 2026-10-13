@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cleanName, deriveName } from '../../src/renderer/src/naming'
+import { cleanName, deriveName, nameSettled } from '../../src/renderer/src/naming'
 
 describe('naming a new document from its first line', () => {
   it.each([
@@ -32,5 +32,20 @@ describe('naming a new document from its first line', () => {
     expect(name.length).toBeLessThanOrEqual(60)
     expect(name.endsWith(' ')).toBe(false)
     expect('This is a very long opening line that just keeps going and going well past sixty'.startsWith(name)).toBe(true)
+  })
+})
+
+describe('when a new document’s name is settled', () => {
+  it.each([
+    ['The Sto', false],
+    ['The Storm\n', true],
+    ['\n\n  The Storm', false],
+    ['\n\nThe Storm\nIt was', true],
+    ['---\ntitle: The Storm', false],
+    ['---\ntitle: The Storm\n---\n', true],
+    ['---\ntags: a\n---\nOpening', false],
+    ['---\ntags: a\n---\nOpening line\n', true]
+  ])('%j → %s', (text, settled) => {
+    expect(nameSettled(text)).toBe(settled)
   })
 })

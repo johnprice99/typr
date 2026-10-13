@@ -1,4 +1,4 @@
-import { deriveName } from '../naming'
+import { deriveName, nameSettled } from '../naming'
 import { rebase } from '../../../shared/paths'
 import { basename, dirname, isInside, join, stem } from '../paths'
 import { readList } from '../storage'
@@ -65,7 +65,7 @@ let trashing = false
 
 export function scheduleSave(): void {
   clearTimeout(saveTimer)
-  if (!trashing) saveTimer = window.setTimeout(save, 400)
+  if (!trashing) saveTimer = window.setTimeout(() => save(false), 400)
 }
 
 let chain: Promise<unknown> = Promise.resolve()
@@ -108,13 +108,15 @@ export async function saveNow(): Promise<void> {
 /**
  * Saves now: the document and its text as they are at this moment, even if you
  * switch documents before the write happens. Resolves false if it failed (the
- * error has been shown).
+ * error has been shown). An autosave (`force` false) doesn't create a new
+ * document's file until its first line is finished, so it's made once, with
+ * its name, rather than renamed with every key; leaving, ⌘S and quitting do.
  */
-export function save(): Promise<boolean> {
+export function save(force = true): Promise<boolean> {
   clearTimeout(saveTimer)
   const d = doc
   const text = app.editor.getDoc()
-  return serial(() => writeNow(d, text)).then(
+  return serial(() => writeNow(d, text, force)).then(
     () => true,
     (e) => {
       notify(`Couldn't save: ${errorText(e)}`)
@@ -130,12 +132,13 @@ function movedTo(d: Doc, next: string): void {
   if (d === doc) announce()
 }
 
-async function writeNow(d: Doc, text: string): Promise<void> {
+async function writeNow(d: Doc, text: string, force: boolean): Promise<void> {
   if (trashing && d === doc) return // it's going to the Trash; saving would bring it back
   if (!d.path) {
     // Nothing to save yet, or nowhere to put it (⌘S or leaving will ask).
     const dir = placeOf(d)
     if (!text.trim() || !dir) return
+    if (!force && !d.name && !nameSettled(text)) return
     d.dir = dir
     d.askedName = d.name ?? deriveName(text)
     d.path = await api.create(dir, d.askedName, toDisk(text, d.eol))
@@ -418,7 +421,7 @@ export const forgetRecentsIn = (folder: string): void => saveRecents(recents().f
 // ---------- file commands ----------
 
 export async function rename(target?: string): Promise<void> {
-  await save()
+  await save(false) // a new document is named here, so don't create it under another name first
   const path = target ?? doc.path
   openPrompt({
     placeholder: path ? 'Rename to…' : 'Name this document…',

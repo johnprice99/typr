@@ -12,6 +12,7 @@ import { settings, updateSetting } from './settings'
 import { locate, renamedCurrent, watchCurrent, watchedFile, wroteCurrent } from './watcher'
 import { testing } from './setup'
 import { flushed, getWindow, send, sendToRenderer, takePending } from './window'
+import { checkForUpdates } from './updates'
 
 // Everything the renderer can ask of the file system. Every path is resolved
 // first (so "folder/../../x" can't sneak out), and changes are only allowed
@@ -265,6 +266,8 @@ export function registerIpc(): void {
     if (!same) throw new Error('A new order must contain exactly the open folders')
     await setFolders(next)
   })
+
+  handle('checkForUpdates', () => checkForUpdates())
 
   handle('forgetFile', (path: string) => forgetFiles((f) => f === abs(path)))
 

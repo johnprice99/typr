@@ -13,6 +13,25 @@ test.describe('writing and saving', () => {
     await expect(t.page.locator('#title')).toHaveText('The Storm')
   })
 
+  test('a new document isn’t written until its first line is finished (or you leave it)', async ({ launch }) => {
+    const t = await launch({ files: { 'Other.md': 'other' } })
+    await t.page.locator('.cm-content').click()
+    await t.page.keyboard.insertText('The Lant')
+    await settle(t.page)
+    await t.page.keyboard.insertText('ern')
+    await settle(t.page)
+    expect(t.ls()).toEqual(['Other.md']) // nothing yet, so no "The Lant.md" on the way
+    await t.page.keyboard.press('Enter')
+    await settle(t.page)
+    expect(t.ls()).toEqual(['Other.md', 'The Lantern.md'])
+    // Leaving a document whose first line isn't finished still saves it.
+    await t.command('new')
+    await t.page.keyboard.insertText('Half a title')
+    await t.open(join(t.lib, 'Other.md'))
+    await expect(t.page.locator('#title')).toHaveText('Other')
+    expect(t.ls()).toEqual(['Half a title.md', 'Other.md', 'The Lantern.md'])
+  })
+
   test('the name follows the first line while new, then settles', async ({ launch }) => {
     const t = await launch()
     await t.setText('# Draft\n\nHello.')
@@ -33,16 +52,16 @@ test.describe('writing and saving', () => {
 
   test('capitalising a title renames the file rather than making "2"', async ({ launch }) => {
     const t = await launch()
-    await t.setText('the storm')
+    await t.setText('the storm\n')
     await settle(t.page)
-    await t.setText('The storm')
+    await t.setText('The storm\n')
     await settle(t.page)
     expect(t.ls()).toEqual(['The storm.md'])
   })
 
   test('a draft left empty leaves no file behind', async ({ launch }) => {
     const t = await launch()
-    await t.setText('x')
+    await t.setText('x\n')
     await settle(t.page)
     expect(t.ls()).toEqual(['x.md'])
     await t.setText('')

@@ -26,7 +26,7 @@ describe('settings from disk', () => {
       folders: [],
       files: [],
       sidebar: false,
-      focus: 'paragraph',
+      focus: 'off',
       textScale: 1,
       showMarkdown: false,
       theme: 'system',
@@ -38,6 +38,7 @@ describe('settings from disk', () => {
   it('upgrades older formats', () => {
     const s = normalizeSettings({ focus: true, focusScope: 'sentence', textScale: 1.2, font: 'serif', typewriter: true })
     expect(s.focus).toBe('sentence')
+    expect(normalizeSettings({ focus: false }).focus).toBe('off')
     expect(s.textScale).toBe(1.2)
     expect('typewriter' in s).toBe(false)
   })

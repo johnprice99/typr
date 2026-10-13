@@ -21,6 +21,7 @@ export const INVOKE_CHANNELS = [
   'closeFolder',
   'reorderFolders',
   'forgetFile',
+  'checkForUpdates',
   'setCurrent',
   'addRecent',
   'setSetting',

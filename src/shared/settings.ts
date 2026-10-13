@@ -24,7 +24,7 @@ const bool = (value: unknown, fallback: boolean): boolean => (typeof value === '
 export function normalizeSettings(saved: Record<string, unknown>): Settings {
   // Older versions: focus was on/off plus a scope, and text size was a number.
   let focus = saved.focus
-  if (typeof focus === 'boolean') focus = focus ? (saved.focusScope ?? 'paragraph') : 'paragraph'
+  if (typeof focus === 'boolean') focus = focus ? (saved.focusScope ?? 'paragraph') : 'off'
   // …and briefly a choice of small / medium / large.
   const named: Record<string, number> = { small: 0.9, medium: 1, large: 1.1 }
   const textScale = typeof saved.textScale === 'number' ? saved.textScale : (named[saved.textSize as string] ?? 1)
@@ -44,7 +44,7 @@ export function normalizeSettings(saved: Record<string, unknown>): Settings {
     folders,
     files,
     sidebar: bool(saved.sidebar, false),
-    focus: oneOf(focus, FOCUS_MODES, 'paragraph'),
+    focus: oneOf(focus, FOCUS_MODES, 'off'),
     textScale: nearestScale(textScale),
     showMarkdown: bool(saved.showMarkdown, false),
     theme: oneOf(saved.theme, THEMES, 'system'),

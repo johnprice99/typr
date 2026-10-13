@@ -10,6 +10,7 @@ import { followAppearanceInDock } from './dock'
 import { buildMenu } from './menu'
 import { onSettingChange, settings } from './settings'
 import { installTestHooks } from './testing'
+import { checkDaily } from './updates'
 import { setWatchEvents } from './watcher'
 import { createWindow, getWindow, isQuitting, openFromOS, send, sendToRenderer, setQuitting } from './window'
 
@@ -67,6 +68,7 @@ app.whenReady().then(() => {
   // The window first, so a missing folder can never stop Typr opening.
   if (!getWindow()) createWindow()
   void refreshFiles()
+  if (!testing) checkDaily()
 })
 
 app.on('before-quit', () => setQuitting(true))

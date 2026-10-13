@@ -133,6 +133,7 @@ export const commands: Record<string, Cmd> = {
   },
 
   about: { title: 'About Typr', run: () => openAbout(app.version) },
+  'check-updates': { title: 'Check for Updates…', run: () => api.checkForUpdates() },
   palette: { title: 'Command Palette', keys: '⇧⌘P', run: showPalette, hidden: true },
   undo: { title: 'Undo', run: () => undo(app.editor.view), hidden: true },
   redo: { title: 'Redo', run: () => redo(app.editor.view), hidden: true }

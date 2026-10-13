@@ -88,6 +88,8 @@ export interface Api {
   reorderFolders(order: string[]): Promise<void>
   /** Removes a file from "Open Files" (the file isn't touched). */
   forgetFile(path: string): Promise<void>
+  /** Asks GitHub for a newer release and offers to download it. */
+  checkForUpdates(): Promise<void>
   setCurrent(path: string | null, title: string): Promise<void>
   /** Adds to File › Open Recent. */
   addRecent(path: string): Promise<void>

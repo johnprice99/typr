@@ -66,6 +66,7 @@ test.describe('app chrome', () => {
       ])
     )
     expect(find('Typr')).not.toContain('Settings… [CmdOrCtrl+,]')
+    expect(find('Typr')).toContain('Check for Updates…')
     expect(find('File')).toContain('Rename… [CmdOrCtrl+Shift+R]')
     expect(find('Format')).toEqual([
       'Bold [CmdOrCtrl+B]',
@@ -153,7 +154,7 @@ test.describe('app chrome', () => {
     await t.open(join(stories, 'Chapter.md'))
     await expect(t.page.locator('#title')).toHaveText('Chapter')
     await t.command('new')
-    await t.page.keyboard.insertText('# Chapter two')
+    await t.page.keyboard.insertText('# Chapter two\n')
     await settle(t.page)
     expect(readdirSync(stories).sort()).toEqual(['Chapter two.md', 'Chapter.md'])
     await t.command('close-folder', stories)
@@ -373,5 +374,39 @@ test.describe('open files', () => {
     await expect(t.page.locator('.sidebar-header')).toHaveText(['library', 'Drafts'])
     await expect(t.page.locator('.sidebar-open-files')).toHaveCount(0)
     await expect.poll(() => t.savedSettings().files).toEqual([])
+  })
+})
+
+test.describe('updates', () => {
+  test('Check for Updates says when there’s a newer release, and when you’re up to date', async ({ launch }) => {
+    const t = await launch()
+    // Stand in for GitHub and the dialog, so nothing goes to the network or appears on screen.
+    const check = async (tag: string): Promise<string> => {
+      await t.app.evaluate(({ net, dialog }, tag) => {
+        const g = globalThis as never as { __shown: string[]; __real?: { fetch: unknown; box: unknown } }
+        g.__real ??= { fetch: net.fetch, box: dialog.showMessageBox }
+        g.__shown = []
+        net.fetch = (async () =>
+          new Response(JSON.stringify({ tag_name: tag, html_url: 'https://example.com', assets: [] }), { status: 200 })) as never
+        dialog.showMessageBox = (async (...args: unknown[]) => {
+          const opts = (args.length > 1 ? args[1] : args[0]) as { message: string }
+          g.__shown.push(opts.message)
+          return { response: 1, checkboxChecked: false }
+        }) as never
+      }, tag)
+      await t.command('check-updates')
+      return t.app.evaluate(() => (globalThis as never as { __shown: string[] }).__shown.join(' | '))
+    }
+    try {
+      await expect.poll(() => check('v9.0.0')).toBe('Typr 9.0.0 is available')
+      await expect.poll(() => check('v1.0.0')).toBe('Typr is up to date')
+    } finally {
+      // The app is shared by every test (and loads images with net.fetch): put the real ones back.
+      await t.app.evaluate(({ net, dialog }) => {
+        const g = globalThis as never as { __real?: { fetch: typeof net.fetch; box: typeof dialog.showMessageBox } }
+        if (g.__real) Object.assign(net, { fetch: g.__real.fetch }) && Object.assign(dialog, { showMessageBox: g.__real.box })
+        delete g.__real
+      })
+    }
   })
 })

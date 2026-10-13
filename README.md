@@ -13,6 +13,7 @@ A quiet Markdown editor. Open it and type.
 - Images: **Insert Image…** or drag one onto the page. Typr links to the file where it is (a relative link within the same open folder, absolute otherwise); nothing is copied. Images from the internet show a placeholder until you click, so opening a document never tells a website you read it.
 - Comments for proofreading: select text, ⇧⌘M, type a note. They're stored in the file as [CriticMarkup](https://fletcher.github.io/MultiMarkdown-6/syntax/critic.html) (`{==text==}{>>note<<}`), shown as highlighted text; hover to read, edit or resolve. **Go to Comment…** lists them all.
 - View › Appearance: System, Light or Dark. Text size: ⌘+, ⌘− and ⌘0 (also in the View menu).
+- Typr › Check for Updates…: asks GitHub for the newest release and offers to download it; Typr also checks quietly once a day.
 - If another app changes a file while you're typing in it, nothing is lost: their version is kept as a “(changed elsewhere)” copy next to it.
 
 ```sh
