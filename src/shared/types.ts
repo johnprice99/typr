@@ -4,6 +4,8 @@ export type Theme = 'system' | 'light' | 'dark'
 export interface Settings {
   /** The folders open in the sidebar (absolute paths). */
   folders: string[]
+  /** Files opened from outside those folders, kept in the sidebar's "Open Files". */
+  files: string[]
   sidebar: boolean
   focus: FocusMode
   /** Text size, as a multiple of the normal size (one of TEXT_SCALES). */
@@ -31,6 +33,8 @@ export interface FolderListing {
 export interface InitialState {
   settings: Settings
   folders: FolderListing[]
+  /** The "Open Files" that currently exist. */
+  files: string[]
   /** Absolute paths the OS asked us to open before the window was ready. */
   pendingOpen: string[]
   version: string
@@ -78,6 +82,8 @@ export interface Api {
   closeFolder(path: string): Promise<void>
   /** Puts the open folders in a new order (it must be the same folders). */
   reorderFolders(order: string[]): Promise<void>
+  /** Removes a file from "Open Files" (the file isn't touched). */
+  forgetFile(path: string): Promise<void>
   setCurrent(path: string | null, title: string): Promise<void>
   /** Adds to File › Open Recent. */
   addRecent(path: string): Promise<void>
@@ -89,7 +95,7 @@ export interface Api {
   pathForFile(file: File): string
   /** Reply to onFlush: whether everything was saved, and the document's title. */
   flushed(saved: boolean, title: string): void
-  onFolders(cb: (folders: FolderListing[]) => void): void
+  onFolders(cb: (folders: FolderListing[], files: string[]) => void): void
   onSettings(cb: (settings: Settings) => void): void
   onCommand(cb: (cmd: Command) => void): void
   onOpen(cb: (path: string) => void): void

@@ -24,6 +24,7 @@ describe('settings from disk', () => {
   it('fills in defaults on first launch', () => {
     expect(normalizeSettings({})).toEqual({
       folders: [],
+      files: [],
       sidebar: false,
       focus: 'paragraph',
       textScale: 1,

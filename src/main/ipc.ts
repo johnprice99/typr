@@ -47,8 +47,37 @@ export function resetSession(): void {
 export const listFolders = (): Promise<FolderListing[]> =>
   Promise.all(settings.folders.map(async (path) => ({ path, entries: await scan(path) })))
 
+/** "Open Files" that exist right now (one on an unplugged drive is hidden, not forgotten). */
+const listOpenFiles = (): string[] => settings.files.filter((f) => existsSync(f))
+
 export async function refreshFiles(): Promise<void> {
-  sendToRenderer('folders', await listFolders())
+  sendToRenderer('folders', await listFolders(), listOpenFiles())
+}
+
+// ---------- "Open Files": files opened from outside the open folders ----------
+
+/** Remembers a file opened from outside the open folders. */
+function keepFile(path: string): void {
+  if (!isTextPath(path) || inLibrary(path) || settings.files.includes(path)) return
+  updateSetting('files', [...settings.files, path])
+  void refreshFiles()
+}
+
+/** Keeps "Open Files" pointing at files (or inside folders) that were renamed or moved. */
+export function movedOpenFile(from: string, to: string): void {
+  const fix = (f: string): string => (isInside(f, from) ? to + f.slice(from.length) : f)
+  if (!settings.files.some((f) => isInside(f, from))) return
+  updateSetting('files', [...new Set(settings.files.map(fix))])
+  void refreshFiles()
+}
+
+function forgetFiles(match: (f: string) => boolean): void {
+  if (!settings.files.some(match)) return
+  updateSetting(
+    'files',
+    settings.files.filter((f) => !match(f))
+  )
+  void refreshFiles()
 }
 
 /** Where file dialogs start: the open document's folder, else the most recently opened folder. */
@@ -62,8 +91,9 @@ async function addFolder(path: string): Promise<string> {
   path = abs(path)
   const containing = settings.folders.find((f) => isInside(path, f))
   if (containing) return containing
-  // Opening a folder that contains open ones replaces them.
+  // Opening a folder that contains open ones replaces them; its files leave "Open Files".
   updateSetting('folders', [...settings.folders.filter((f) => !isInside(f, path)), path])
+  forgetFiles((f) => isInside(f, path))
   watchFolders(settings.folders, refreshFiles)
   await refreshFiles()
   return path
@@ -80,7 +110,7 @@ function handle<K extends InvokeChannel>(
 export function registerIpc(): void {
   handle('init', async (): Promise<InitialState> => {
     const pendingOpen = takePendingOpens()
-    return { settings, folders: await listFolders(), pendingOpen, version: app.getVersion() }
+    return { settings, folders: await listFolders(), files: listOpenFiles(), pendingOpen, version: app.getVersion() }
   })
 
   handle('read', async (path: string) => {
@@ -136,6 +166,7 @@ export function registerIpc(): void {
     const next = uniquePath(dirname(path), sanitize(base), ext, path)
     if (next !== path) await rename(path, next)
     trustPath(next)
+    movedOpenFile(path, next)
     renamedCurrent(path, next)
     return next
   })
@@ -156,6 +187,7 @@ export function registerIpc(): void {
     const current = watchedFile()
     if (current && isInside(current, path)) watchCurrent(null)
     await shell.trashItem(path)
+    forgetFiles((f) => isInside(f, path))
   })
 
   handle('reveal', (path: string) => shell.showItemInFolder(path))
@@ -226,8 +258,11 @@ export function registerIpc(): void {
     await refreshFiles()
   })
 
+  handle('forgetFile', (path: string) => forgetFiles((f) => f === abs(path)))
+
   handle('setCurrent', (path: string | null, title: string) => {
     watchCurrent(path)
+    if (path) keepFile(abs(path))
     const win = getWindow()
     if (!win) return
     win.setTitle(title)
@@ -241,7 +276,7 @@ export function registerIpc(): void {
 
   handle('setSetting', (key, value) => {
     // Where files may be written is only changed through openFolder / closeFolder.
-    if ((['folders', 'window'] as (keyof Settings)[]).includes(key)) throw new Error(`${key} can't be set directly`)
+    if ((['folders', 'files', 'window'] as (keyof Settings)[]).includes(key)) throw new Error(`${key} can't be set directly`)
     if (key === 'fullscreen') getWindow()?.setFullScreen(Boolean(value))
     else updateSetting(key, value as never)
   })
@@ -254,7 +289,16 @@ export function registerIpc(): void {
       { type: 'separator' },
       { label: 'Show in Finder', click: () => shell.showItemInFolder(path) }
     ]
-    if (settings.folders.includes(path)) {
+    if (settings.files.includes(path)) {
+      // An "Open Files" entry: no "New … Here" (its folder isn't open).
+      items.splice(0, 3)
+      items.push(
+        { label: 'Rename…', click: () => send({ id: 'rename', path }) },
+        { type: 'separator' },
+        { label: 'Remove from Open Files', click: () => send({ id: 'forget-file', path }) },
+        { label: 'Move to Trash', click: () => send({ id: 'trash', path }) }
+      )
+    } else if (settings.folders.includes(path)) {
       items.push({ type: 'separator' }, { label: 'Close Folder', click: () => send({ id: 'close-folder', path }) })
     } else {
       items.push(

@@ -305,3 +305,50 @@ test.describe('folder order', () => {
     expect(result).toContain('exactly the open folders')
   })
 })
+
+test.describe('open files', () => {
+  test('a file opened from outside the folders stays in Open Files, and follows renames', async ({ launch }) => {
+    const t = await launch({ files: { 'Note.md': '# Note' }, settings: { sidebar: true } })
+    const loose = join(t.outside, 'Loose idea.md')
+    writeFileSync(loose, 'an idea')
+    await t.open(loose)
+    await expect(t.page.locator('#title')).toHaveText('Loose idea')
+    await expect(t.page.locator('.sidebar-header')).toHaveText(['Open Files', 'library'])
+    await expect(t.page.locator('.sidebar-open-files .file')).toHaveText(['Loose idea'])
+    await expect.poll(() => t.savedSettings().files).toEqual([loose])
+    // It's in Go to File, from another document.
+    await t.command('new')
+    await t.command('quick-open')
+    await expect(t.page.locator('.palette-item .label')).toContainText(['Loose idea'])
+    await t.page.keyboard.press('Escape')
+    // Renaming it keeps it in the list under its new name.
+    await t.open(loose)
+    await expect(t.page.locator('#title')).toHaveText('Loose idea')
+    await t.command('rename')
+    await t.page.keyboard.press('Meta+a')
+    await t.page.keyboard.insertText('Better idea')
+    await t.page.keyboard.press('Enter')
+    await expect(t.page.locator('.sidebar-open-files .file')).toHaveText(['Better idea'])
+    // Removing it from the list leaves the file alone.
+    await t.command('forget-file')
+    await expect(t.page.locator('.sidebar-open-files')).toHaveCount(0)
+    expect(readdirSync(t.outside)).toContain('Better idea.md')
+  })
+
+  test('opening the folder a file lives in moves it out of Open Files', async ({ launch }) => {
+    const t = await launch({ settings: { sidebar: true } })
+    const dir = join(t.outside, 'Drafts')
+    mkdirSync(dir)
+    const file = join(dir, 'Draft.md')
+    writeFileSync(file, 'draft')
+    await t.open(file)
+    await expect(t.page.locator('.sidebar-open-files .file')).toHaveText(['Draft'])
+    await t.app.evaluate(({ dialog }, path) => {
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [path] })) as never
+    }, dir)
+    await t.command('open-folder')
+    await expect(t.page.locator('.sidebar-header')).toHaveText(['library', 'Drafts'])
+    await expect(t.page.locator('.sidebar-open-files')).toHaveCount(0)
+    await expect.poll(() => t.savedSettings().files).toEqual([])
+  })
+})

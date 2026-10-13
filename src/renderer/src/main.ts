@@ -63,6 +63,7 @@ async function start(): Promise<void> {
   const init = await api.init()
   app.version = init.version
   app.folders = init.folders
+  app.openFiles = init.files
   applySettings(init.settings)
   session.startEmpty()
 
@@ -70,8 +71,9 @@ async function start(): Promise<void> {
   onPaletteClose(() => app.editor.view.focus())
   onPanelClose(() => app.editor.view.focus())
   onPaletteError((e) => notify(errorText(e)))
-  api.onFolders((f) => {
-    app.folders = f
+  api.onFolders((folders, files) => {
+    app.folders = folders
+    app.openFiles = files
     drawSidebar()
   })
   api.onSettings(applySettings)

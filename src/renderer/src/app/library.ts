@@ -56,10 +56,10 @@ let drawn = ''
 /** Redraws the sidebar, but only if something it shows has changed. */
 export function drawSidebar(): void {
   const doc = current()
-  const key = `${doc?.path ?? ''}\n${JSON.stringify(app.folders)}`
+  const key = `${doc?.path ?? ''}\n${JSON.stringify(app.folders)}\n${app.openFiles.join('\n')}`
   if (key === drawn) return
   drawn = key
-  renderSidebar($('sidebar'), app.folders, doc?.path ?? null, {
+  renderSidebar($('sidebar'), app.folders, app.openFiles, doc?.path ?? null, {
     open: (path) => open(path),
     menu: (path, isDir) => api.itemMenu(path, isDir),
     openFolder: () => void openFolder(),
@@ -67,12 +67,12 @@ export function drawSidebar(): void {
   })
 }
 
-/**
- * Go to File: the documents in your open folders, recently used ones first;
- * typing a new name creates it. (Files opened from elsewhere are in File › Open Recent.)
- */
+/** Go to File: your open folders' documents and Open Files, recently used ones first; typing a new name creates it. */
 export function quickOpen(): void {
-  const docs = app.folders.flatMap((f) => f.entries.filter((e) => !e.endsWith('/')).map((e) => join(f.path, e)))
+  const docs = [
+    ...app.folders.flatMap((f) => f.entries.filter((e) => !e.endsWith('/')).map((e) => join(f.path, e))),
+    ...app.openFiles
+  ]
   const inFolders = new Set(docs)
   const all = [...new Set([...recents().filter((p) => inFolders.has(p)), ...docs])].filter((p) => p !== current().path)
   const where = (p: string): string => {

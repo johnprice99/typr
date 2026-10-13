@@ -4,7 +4,7 @@ import { existsSync } from 'fs'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
 import { isImagePath } from '../shared/files'
-import { refreshFiles, registerIpc, trustPath } from './ipc'
+import { movedOpenFile, refreshFiles, registerIpc, trustPath } from './ipc'
 import { scan, watchFolders } from './library'
 import { followAppearanceInDock } from './dock'
 import { buildMenu } from './menu'
@@ -28,6 +28,7 @@ setWatchEvents({
   changed: (path) => sendToRenderer('file-changed', path),
   moved: (from, to) => {
     trustPath(to)
+    movedOpenFile(from, to)
     sendToRenderer('file-moved', from, to)
   },
   gone: (path) => sendToRenderer('file-gone', path),

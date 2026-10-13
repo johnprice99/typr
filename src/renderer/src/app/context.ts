@@ -11,6 +11,8 @@ export const app = {
   settings: undefined as unknown as Settings,
   /** The open folders and what's in them. */
   folders: [] as FolderListing[],
+  /** Files opened from outside those folders ("Open Files" in the sidebar). */
+  openFiles: [] as string[],
   version: ''
 }
 

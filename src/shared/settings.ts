@@ -37,8 +37,12 @@ export function normalizeSettings(saved: Record<string, unknown>): Settings {
   // Older versions had a single "library"; it becomes the first open folder.
   const listed = Array.isArray(saved.folders) ? saved.folders : saved.librarySet && saved.library ? [saved.library] : []
   const folders = [...new Set(listed.filter((f): f is string => typeof f === 'string' && f.startsWith('/')))]
+  const files = Array.isArray(saved.files)
+    ? [...new Set(saved.files.filter((f): f is string => typeof f === 'string' && f.startsWith('/')))]
+    : []
   return {
     folders,
+    files,
     sidebar: bool(saved.sidebar, false),
     focus: oneOf(focus, FOCUS_MODES, 'paragraph'),
     textScale: nearestScale(textScale),

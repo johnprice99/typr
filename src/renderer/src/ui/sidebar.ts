@@ -112,16 +112,22 @@ function tree({ path: root, entries }: FolderListing): Node {
   return top
 }
 
-export function renderSidebar(el: HTMLElement, folders: FolderListing[], current: string | null, h: SidebarHandlers): void {
-  roots = new Set(folders.map((f) => f.path))
-  // Always show the way to the open file.
-  if (current) {
-    for (const r of roots) if (isInside(current, r)) collapsedRoots.delete(r)
-    for (
-      let d = current.slice(0, current.lastIndexOf('/'));
-      d.includes('/') && !roots.has(d);
-      d = d.slice(0, d.lastIndexOf('/'))
-    ) {
+/** The "Open Files" section's key in the collapsed list (not a real path). */
+const OPEN_FILES = 'typr:open-files'
+
+export function renderSidebar(
+  el: HTMLElement,
+  folders: FolderListing[],
+  openFiles: string[],
+  current: string | null,
+  h: SidebarHandlers
+): void {
+  roots = new Set([...folders.map((f) => f.path), OPEN_FILES])
+  // Always show the way to the open file (within its open folder).
+  const root = current ? folders.find((f) => isInside(current, f.path))?.path : undefined
+  if (current && root) {
+    collapsedRoots.delete(root)
+    for (let d = current.slice(0, current.lastIndexOf('/')); d.length > root.length; d = d.slice(0, d.lastIndexOf('/'))) {
       expanded.add(d)
     }
     persist()
@@ -141,7 +147,7 @@ export function renderSidebar(el: HTMLElement, folders: FolderListing[], current
     })
     r.addEventListener('contextmenu', (e) => {
       e.preventDefault()
-      h.menu(n.path, n.dir)
+      if (n.path !== OPEN_FILES) h.menu(n.path, n.dir)
     })
     return r
   }
@@ -161,7 +167,7 @@ export function renderSidebar(el: HTMLElement, folders: FolderListing[], current
     return ul
   }
 
-  if (!folders.length) {
+  if (!folders.length && !openFiles.length) {
     const empty = document.createElement('div')
     empty.className = 'sidebar-empty'
     const open = document.createElement('button')
@@ -191,5 +197,24 @@ export function renderSidebar(el: HTMLElement, folders: FolderListing[], current
       folders.map((f) => f.path),
       h.reorder
     )
-  el.replaceChildren(...sections)
+
+  // Files opened from outside the folders, at the top for quick reopening.
+  const loose: HTMLElement[] = []
+  if (openFiles.length) {
+    const section = document.createElement('section')
+    section.className = 'sidebar-folder sidebar-open-files'
+    const header: Node = { name: 'Open Files', path: OPEN_FILES, dir: true, children: [] }
+    const files = openFiles.map((path): Node => ({ name: basename(path), path, dir: false, children: [] })).sort(byName)
+    section.append(row(header, 0, 'sidebar-header', 'Open Files'))
+    const ul = document.createElement('ul')
+    for (const f of files) {
+      const li = document.createElement('li')
+      li.append(row(f, 0, 'row file', stem(f.name)))
+      ul.append(li)
+    }
+    if (isCollapsed(OPEN_FILES)) ul.classList.add('hidden')
+    section.append(ul)
+    loose.push(section)
+  }
+  el.replaceChildren(...loose, ...sections)
 }

@@ -20,6 +20,7 @@ export const INVOKE_CHANNELS = [
   'openFolder',
   'closeFolder',
   'reorderFolders',
+  'forgetFile',
   'setCurrent',
   'addRecent',
   'setSetting',
@@ -32,7 +33,7 @@ export type Invoke = Pick<Api, InvokeChannel>
 
 /** Messages from the main process to the window, with their arguments. */
 export interface Events {
-  folders: [folders: FolderListing[]]
+  folders: [folders: FolderListing[], files: string[]]
   settings: [settings: Settings]
   command: [cmd: Command]
   open: [path: string]

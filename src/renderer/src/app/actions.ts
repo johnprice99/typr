@@ -48,6 +48,15 @@ export const commands: Record<string, Cmd> = {
   },
   'open-folder': { title: 'Open Folder…', keys: '⇧⌘O', run: openFolder },
   'close-folder': { title: 'Close Folder…', run: (p) => closeFolder(p) },
+  'forget-file': {
+    title: 'Remove from Open Files',
+    run: async (p) => {
+      const path = p ?? current().path
+      if (!path || !app.openFiles.includes(path)) return notify('This document isn’t in Open Files')
+      await api.forgetFile(path)
+      notify('Removed from Open Files (the file is untouched)')
+    }
+  },
   save: { title: 'Save', keys: '⌘S', run: saveNow },
   'close-doc': { title: 'Close Document', keys: '⌘W', run: closeDoc },
   'quick-open': { title: 'Go to File…', keys: '⌘P', run: quickOpen },
