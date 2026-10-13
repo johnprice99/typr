@@ -4,7 +4,7 @@ import type { FocusMode, Settings, TextSize, Theme } from './types'
 
 const SIZES: TextSize[] = ['small', 'medium', 'large']
 const THEMES: Theme[] = ['system', 'light', 'dark']
-const FOCUS: FocusMode[] = ['off', 'paragraph', 'sentence']
+export const FOCUS_MODES: FocusMode[] = ['off', 'paragraph', 'sentence']
 
 const oneOf = <T>(value: unknown, allowed: T[], fallback: T): T => (allowed.includes(value as T) ? (value as T) : fallback)
 const bool = (value: unknown, fallback: boolean): boolean => (typeof value === 'boolean' ? value : fallback)
@@ -28,7 +28,7 @@ export function normalizeSettings(saved: Record<string, unknown>, defaultLibrary
     library: typeof saved.library === 'string' && saved.library ? saved.library : defaultLibrary,
     librarySet: bool(saved.librarySet, false),
     sidebar: bool(saved.sidebar, false),
-    focus: oneOf(focus, FOCUS, 'paragraph'),
+    focus: oneOf(focus, FOCUS_MODES, 'paragraph'),
     textSize: oneOf(textSize, SIZES, 'medium'),
     showMarkdown: bool(saved.showMarkdown, false),
     theme: oneOf(saved.theme, THEMES, 'system'),

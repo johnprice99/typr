@@ -1,6 +1,6 @@
 import { EditorState, Extension, Range, StateField } from '@codemirror/state'
 import { syntaxTree } from '@codemirror/language'
-import type { SyntaxNode } from '@lezer/common'
+import { inCode } from './syntax'
 import { Decoration, DecorationSet, EditorView, hoverTooltip, ViewPlugin, ViewUpdate } from '@codemirror/view'
 
 // Comments use CriticMarkup, so they live in the file itself and travel with it:
@@ -20,14 +20,15 @@ export interface Comment {
   text: string
 }
 
-const RE = /\{==([\s\S]*?)==\}[ \t]?\{>>([\s\S]*?)<<\}/g
+// The text and the note may not contain another comment's markers or a blank
+// line, so a stray "{==" can never swallow (or hide) the comments after it, and
+// matching never has to scan ahead to the end of the document.
+const RE = /\{==((?:(?!==\}|\{==|\n[ \t]*\n)[\s\S])*?)==\}[ \t]?\{>>((?:(?!<<\}|\{>>|\n[ \t]*\n)[\s\S])*?)<<\}/g
 
 export function findComments(src: string): Comment[] {
   const out: Comment[] = []
   RE.lastIndex = 0
   for (let m; (m = RE.exec(src));) {
-    // A comment never spans paragraphs; a stray "{==" shouldn't swallow the document.
-    if (/\n[ \t]*\n/.test(m[0])) continue
     const from = m.index
     const to = from + m[0].length
     const textFrom = from + 3
@@ -42,39 +43,42 @@ export function findComments(src: string): Comment[] {
 export const stripComments = (src: string): string => src.replace(RE, (_m, text) => text)
 
 /** Comment markup inside code (a code block or `inline code`) is code, not a comment. */
-function outsideCode(state: EditorState, list: Comment[]): Comment[] {
-  const tree = syntaxTree(state)
-  return list.filter((c) => {
-    for (let n: SyntaxNode | null = tree.resolveInner(c.from, 1); n; n = n.parent) {
-      if (n.name === 'InlineCode' || n.name === 'FencedCode' || n.name === 'CodeBlock') return false
-    }
-    return true
-  })
-}
-
-const scan = (state: EditorState): Comment[] => outsideCode(state, findComments(state.doc.toString()))
+const outsideCode = (state: EditorState, list: Comment[]): Comment[] => list.filter((c) => !inCode(state, c.from))
 
 /** Characters that can start, end or break a comment. */
 const MARKUP = /[{}=<>]/
 
+interface Comments {
+  /** Everything that looks like a comment. */
+  found: Comment[]
+  /** …minus anything inside code: the real comments. */
+  visible: Comment[]
+}
+
+function scan(state: EditorState): Comments {
+  const found = findComments(state.doc.toString())
+  return { found, visible: outsideCode(state, found) }
+}
+
 /** The comments in the document, kept up to date cheaply as you type. */
-export const commentsField = StateField.define<Comment[]>({
+export const commentsField = StateField.define<Comments>({
   create: scan,
   update(value, tr) {
+    const reparsed = syntaxTree(tr.startState) !== syntaxTree(tr.state)
     if (!tr.docChanged) {
-      // The code-block check depends on the parse, which can finish later.
-      return syntaxTree(tr.startState) !== syntaxTree(tr.state) ? scan(tr.state) : value
+      // The parse can finish later; only the cheap code check needs redoing.
+      return reparsed ? { found: value.found, visible: outsideCode(tr.state, value.found) } : value
     }
     // Most keystrokes can't create or break a comment: shift the known ones instead of rescanning.
     let rescan = false
     tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
       if (rescan) return
       if (MARKUP.test(inserted.toString()) || MARKUP.test(tr.startState.sliceDoc(fromA, toA))) rescan = true
-      else if (value.some((c) => fromA <= c.to && toA >= c.from)) rescan = true
+      else if (value.found.some((c) => fromA <= c.to && toA >= c.from)) rescan = true
     })
     if (rescan) return scan(tr.state)
     const map = (pos: number, assoc: -1 | 1): number => tr.changes.mapPos(pos, assoc)
-    return value.map((c) => ({
+    const found = value.found.map((c) => ({
       ...c,
       from: map(c.from, 1),
       to: map(c.to, -1),
@@ -83,11 +87,15 @@ export const commentsField = StateField.define<Comment[]>({
       noteFrom: map(c.noteFrom, 1),
       noteTo: map(c.noteTo, -1)
     }))
+    return { found, visible: outsideCode(tr.state, found) }
   }
 })
 
+/** The real comments in the document, in order. */
+export const listComments = (state: EditorState): Comment[] => state.field(commentsField, false)?.visible ?? []
+
 export function commentAt(state: EditorState, pos: number): Comment | null {
-  return state.field(commentsField, false)?.find((c) => pos >= c.from && pos <= c.to) ?? null
+  return listComments(state).find((c) => pos >= c.from && pos <= c.to) ?? null
 }
 
 const cleanNote = (note: string): string =>
@@ -131,9 +139,12 @@ function build(view: EditorView, live: boolean): DecorationSet {
   // Strict, so the markup stays hidden when the cursor sits just after a comment.
   const inside = (c: Comment): boolean => sel.some((r) => r.from < c.to && r.to > c.from)
   const out: Range<Decoration>[] = []
-  for (const c of state.field(commentsField)) {
+  for (const c of listComments(state)) {
     if (c.textTo > c.textFrom) out.push(highlight.range(c.textFrom, c.textTo))
-    if (live && !inside(c)) {
+    // A comment whose markup spans lines stays visible as Markdown: CodeMirror
+    // can't hide a line break from a view plugin.
+    const oneLine = state.doc.lineAt(c.from).number === state.doc.lineAt(c.to).number
+    if (live && !inside(c) && oneLine) {
       out.push(hidden.range(c.from, c.textFrom), hidden.range(c.textTo, c.to))
     } else {
       out.push(mark.range(c.from, c.textFrom), mark.range(c.textTo, c.noteFrom))

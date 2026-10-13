@@ -8,7 +8,8 @@ import {
   normalize,
   relativePath,
   relativeTo,
-  safeDecode,
+  decodePath,
+  encodePath,
   stem
 } from '../../src/renderer/src/paths'
 import { isImagePath, isTextPath } from '../../src/shared/files'
@@ -40,9 +41,12 @@ describe('paths', () => {
     expect(relativePath(from, to)).toBe(want)
   })
 
-  it('decodes links without throwing on a stray %', () => {
-    expect(safeDecode('My%20Map.png')).toBe('My Map.png')
-    expect(safeDecode('100%.png')).toBe('100%.png')
+  it('reads link paths without throwing on a stray %, including # and ?', () => {
+    expect(decodePath('My%20Map.png')).toBe('My Map.png')
+    expect(decodePath('100%.png')).toBe('100%.png')
+    expect(decodePath('Pic%231%3F.png')).toBe('Pic#1?.png')
+    expect(encodePath('a b/Pic#1?(2).png')).toBe('a%20b/Pic%231%3F%282%29.png')
+    expect(decodePath(encodePath('/x/a (b)#c?.png'))).toBe('/x/a (b)#c?.png')
   })
 
   it('turns image links into loadable URLs', () => {
@@ -51,6 +55,13 @@ describe('paths', () => {
     expect(imageSrc('/abs/c.png', '/lib')).toBe('typr-file://local/abs/c.png')
     expect(imageSrc('https://x.com/d.png', '/lib')).toBe('https://x.com/d.png')
     expect(imageSrc('100%.png', '/lib')).toBe('typr-file://local/lib/100%25.png')
+    expect(imageSrc('Pic%231.png', '/lib')).toBe('typr-file://local/lib/Pic%231.png')
+  })
+
+  it('treats ".." as leaving a folder, so it cannot sneak outside', () => {
+    expect(isInside('/lib/../etc/passwd', '/lib')).toBe(false)
+    expect(isInside('/lib/a/../b.md', '/lib')).toBe(true)
+    expect(isInside('/lib', '/lib/x/..')).toBe(true)
   })
 
   it('recognises documents and images', () => {

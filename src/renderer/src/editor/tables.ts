@@ -80,16 +80,15 @@ interface TableSpan {
 /** Where the tables are. Only recomputed when the text or its parse changes, not on every cursor move. */
 function findTables(state: EditorState): TableSpan[] {
   const out: TableSpan[] = []
-  syntaxTree(state).iterate({
-    enter(n) {
-      if (n.name === 'FencedCode' || n.name === 'CodeBlock') return false
-      if (n.name !== 'Table') return
-      const from = state.doc.lineAt(n.from).from
-      // Only tables that start their own line (not inside a quote or list).
-      if (from === n.from) out.push({ from, to: state.doc.lineAt(n.to).to })
-      return false
-    }
-  })
+  // Only top-level tables are rendered (not ones inside a quote or list), so
+  // only the top-level blocks need looking at, not every node in the document.
+  const cursor = syntaxTree(state).topNode.cursor()
+  if (!cursor.firstChild()) return out
+  do {
+    if (cursor.name !== 'Table') continue
+    const from = state.doc.lineAt(cursor.from).from
+    if (from === cursor.from) out.push({ from, to: state.doc.lineAt(cursor.to).to })
+  } while (cursor.nextSibling())
   return out
 }
 
@@ -191,6 +190,8 @@ function moveCell(view: EditorView, dir: 1 | -1): boolean {
   const table = tableAt(state, pos)
   if (!table) return false
   const { doc } = state
+  // Only tables that start their own line; in a quote or indented, cell 0 would be the marker.
+  if (doc.lineAt(table.from).from !== table.from) return false
   const first = doc.lineAt(table.from).number
   const last = doc.lineAt(table.to).number
   let line = doc.lineAt(pos)

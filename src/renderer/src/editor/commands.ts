@@ -1,6 +1,7 @@
 import { EditorSelection } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { insertNewlineContinueMarkupCommand } from '@codemirror/lang-markdown'
+import { inCode } from './syntax'
 
 // Editing commands. They only use view.state and view.dispatch, so they can be
 // tested without a browser.
@@ -66,6 +67,8 @@ const EMPTY_ITEM = /^(?:(?:[-*+]|\d+[.)])[ \t]+(?:\[[ xX]\][ \t]*)?|(?:>[ \t]?)+
 export function enter(view: Target): boolean {
   const { state } = view
   const sel = state.selection.main
+  // Inside code, "- " or "> " is just text: Enter is a plain new line.
+  if (inCode(state, sel.head, -1)) return false
   if (state.selection.ranges.length === 1 && sel.empty) {
     const line = state.doc.lineAt(sel.head)
     if (sel.head === line.to && EMPTY_ITEM.test(line.text)) {

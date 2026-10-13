@@ -181,3 +181,18 @@ test.describe('find', () => {
     await expect(t.page.locator('.find')).toHaveCount(0)
   })
 })
+
+test.describe('find after editing', () => {
+  test('typing in Find after Replace All shrinks the text does not crash', async ({ launch }) => {
+    const t = await launch()
+    await t.setText('aaaa bbbb aaaa bbbb aaaa bbbb')
+    await t.command('replace')
+    await t.page.locator('.find input').first().fill('aaaa')
+    await t.page.locator('.find input').nth(1).fill('a')
+    await t.page.locator('.find input').nth(1).press('Meta+Enter')
+    await t.page.locator('.find input').first().focus()
+    await t.page.keyboard.type('b')
+    await expect(t.page.locator('.find-count').first()).toHaveText('No results')
+    expect(t.errors).toEqual([])
+  })
+})

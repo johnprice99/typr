@@ -1,6 +1,7 @@
 import iconLight from '../../../../resources/icon-light.png'
 import iconDark from '../../../../resources/icon-dark.png'
 import type { Settings, TextSize, Theme } from '../../../shared/types'
+import { tildify } from '../../../shared/paths'
 
 // Settings and About: small centred panels in the same style as the palette.
 // Everything works from the keyboard: Tab between rows, arrows to choose, Esc to close.
@@ -17,11 +18,12 @@ export const SIZES: { id: TextSize; name: string }[] = [
 ]
 
 let open: { el: HTMLElement; refresh?: (s: Settings) => void } | null = null
-let onDone: () => void = () => {}
+const closeListeners: (() => void)[] = []
 
 export const isPanelOpen = (): boolean => open !== null
+/** Adds a listener for when a panel closes. */
 export const onPanelClose = (cb: () => void): void => {
-  onDone = cb
+  closeListeners.push(cb)
 }
 export const refreshPanel = (s: Settings): void => open?.refresh?.(s)
 
@@ -29,7 +31,7 @@ function closePanel(): void {
   if (!open) return
   open.el.remove()
   open = null
-  onDone()
+  for (const cb of closeListeners) cb()
 }
 
 function shell(className: string): HTMLDivElement {
@@ -100,7 +102,7 @@ export function openSettings(settings: Settings, h: SettingsHandlers): void {
     }
     const library = el('div', 'library')
     library.append(
-      el('span', 'library-path', s.library.replace(/^\/Users\/[^/]+/, '~')),
+      el('span', 'library-path', tildify(s.library)),
       Object.assign(el('button', 'link', 'Change…'), { onclick: h.changeLibrary })
     )
     box.replaceChildren(

@@ -8,7 +8,7 @@ import { libraryChanged } from './session'
 
 export const set = <K extends keyof Settings>(key: K, value: Settings[K]): Promise<void> => api.setSetting(key, value)
 
-export const FOCUS: FocusMode[] = ['off', 'paragraph', 'sentence']
+export { FOCUS_MODES as FOCUS } from '../../../shared/settings'
 export const label = (s: string): string => s[0].toUpperCase() + s.slice(1)
 
 export function setFocus(mode: FocusMode, announce = false): void {

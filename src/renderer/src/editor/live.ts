@@ -1,8 +1,9 @@
-import { EditorState, Range } from '@codemirror/state'
+import { Range } from '@codemirror/state'
 import { Decoration, DecorationSet, EditorView, WidgetType } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
 import { measure, px } from './markdown'
+import { inCode, WIKILINK } from './syntax'
 
 // Formatted view: the file stays plain Markdown, but its syntax is hidden and
 // rendered (headings, bold, links, bullets, checkboxes, images…). Wherever the
@@ -89,7 +90,6 @@ const hidden = Decoration.replace({})
 const bullet = Decoration.replace({ widget: new BulletWidget() })
 const rule = Decoration.replace({ widget: new RuleWidget() })
 
-const WIKI = /\[\[([^[\]\n]+?)\]\]/g
 // Widths come from CSS (--md-bullet-w, --md-check-w) so they're defined once.
 const LIST_INDENT = 1.75
 
@@ -122,8 +122,11 @@ export function buildLive(view: EditorView, opts: LiveOptions): DecorationSet {
     seen.add(key)
     out.push(r)
   }
+  // CodeMirror can't hide a line break from a view plugin (it throws), so anything
+  // that spans lines, like a link whose address wraps, simply stays as Markdown.
+  const oneLine = (from: number, to: number): boolean => lineOf(from).number === lineOf(to).number
   const hide = (from: number, to: number): void => {
-    if (to > from) add(`h${from}:${to}`, hidden.range(from, to))
+    if (to > from && oneLine(from, to)) add(`h${from}:${to}`, hidden.range(from, to))
   }
   const line = (pos: number, cls: string, style?: string): void => {
     const l = lineOf(pos)
@@ -227,7 +230,7 @@ export function buildLive(view: EditorView, opts: LiveOptions): DecorationSet {
             if (!lineTouched(ref.from)) add(`r${ref.from}`, rule.range(ref.from, ref.to))
             return false
           case 'Image': {
-            if (lineTouched(ref.from)) return
+            if (lineTouched(ref.from) || !oneLine(ref.from, ref.to)) return
             const url = node.getChild('URL')
             if (!url) return
             const alt = doc.sliceString(ref.from + 2, (node.getChildren('LinkMark')[1] ?? url).from)
@@ -236,7 +239,7 @@ export function buildLive(view: EditorView, opts: LiveOptions): DecorationSet {
             return false
           }
           case 'Link': {
-            if (touches(ref.from, ref.to)) return
+            if (touches(ref.from, ref.to) || !oneLine(ref.from, ref.to)) return
             const marks = node.getChildren('LinkMark')
             if (marks.length >= 2) {
               hide(ref.from, marks[0].to)
@@ -267,7 +270,7 @@ export function buildLive(view: EditorView, opts: LiveOptions): DecorationSet {
     // [[Wikilinks]] aren't part of the Markdown grammar, so find them by pattern.
     for (let pos = from; pos <= to;) {
       const l = doc.lineAt(pos)
-      for (const m of l.text.matchAll(WIKI)) {
+      for (const m of l.text.matchAll(WIKILINK)) {
         const start = l.from + m.index!
         const end = start + m[0].length
         if (touches(start, end) || inCode(state, start)) continue
@@ -280,11 +283,4 @@ export function buildLive(view: EditorView, opts: LiveOptions): DecorationSet {
     }
   }
   return Decoration.set(out, true)
-}
-
-function inCode(state: EditorState, pos: number): boolean {
-  for (let n: SyntaxNode | null = syntaxTree(state).resolveInner(pos, 1); n; n = n.parent) {
-    if (n.name === 'InlineCode' || n.name === 'FencedCode' || n.name === 'CodeBlock') return true
-  }
-  return false
 }

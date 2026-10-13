@@ -84,7 +84,16 @@ function createPanel(view: EditorView): Panel {
     if (!q.eq(getSearchQuery(view.state))) view.dispatch({ effects: setSearchQuery.of(q) })
   }
 
+  // Counting walks the whole document, so it's capped and waits for a pause in edits/cursor moves.
+  const LIMIT = 1000
+  let countTimer = 0
+  const scheduleCount = (): void => {
+    clearTimeout(countTimer)
+    countTimer = window.setTimeout(updateCount, 120)
+  }
   const updateCount = (): void => {
+    clearTimeout(countTimer)
+    if (!dom.isConnected) return
     const q = getSearchQuery(view.state)
     if (!q.search) {
       count.textContent = ''
@@ -98,9 +107,10 @@ function createPanel(view: EditorView): Panel {
     for (let r = cursor.next(); !r.done; r = cursor.next()) {
       total++
       if (r.value.from === sel.from && r.value.to === sel.to) at = total
-      if (total >= 9999) break
+      if (total >= LIMIT) break
     }
-    count.textContent = total ? (at ? `${at} of ${total}` : `${total}`) : 'No results'
+    const shown = total >= LIMIT ? `${LIMIT}+` : `${total}`
+    count.textContent = total ? (at ? `${at} of ${shown}` : shown) : 'No results'
     dom.classList.toggle('none', total === 0)
   }
 
@@ -120,7 +130,7 @@ function createPanel(view: EditorView): Panel {
 
   find.addEventListener('input', () => {
     commit()
-    view.dispatch({ selection: EditorSelection.cursor(anchor) })
+    view.dispatch({ selection: EditorSelection.cursor(Math.min(anchor, view.state.doc.length)) })
     if (find.value) jump(false)
     updateCount()
   })
@@ -170,9 +180,10 @@ function createPanel(view: EditorView): Panel {
       setReplace(s.wantReplace)
     },
     update(u: ViewUpdate) {
-      if (u.docChanged || u.selectionSet || u.transactions.some((tr) => tr.effects.some((e) => e.is(setSearchQuery)))) {
-        updateCount()
-      }
+      // Keep the starting point in step with edits (e.g. after Replace All shrinks the text).
+      if (u.docChanged) anchor = u.changes.mapPos(anchor)
+      if (u.transactions.some((tr) => tr.effects.some((e) => e.is(setSearchQuery)))) updateCount()
+      else if (u.docChanged || u.selectionSet) scheduleCount()
     },
     destroy() {
       stateOf(view).panel = null

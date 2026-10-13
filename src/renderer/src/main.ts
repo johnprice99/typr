@@ -5,7 +5,7 @@ import '@fontsource/ibm-plex-mono/700-italic.css'
 import './style.css'
 import { commands } from './app/actions'
 import { applySettings } from './app/appearance'
-import { $, api, app } from './app/context'
+import { $, api, app, errorText, notify } from './app/context'
 import { insertFiles } from './app/images'
 import { chooseLibrary, drawSidebar } from './app/library'
 import { follow, linkNames } from './app/navigation'
@@ -14,7 +14,7 @@ import * as session from './app/session'
 import { scheduleStats, updateStats } from './app/status'
 import { createEditor } from './editor/editor'
 import { imageSrc } from './paths'
-import { isPaletteOpen, onPaletteClose } from './ui/palette'
+import { isPaletteOpen, onPaletteClose, onPaletteError } from './ui/palette'
 import { isPanelOpen, onPanelClose } from './ui/panels'
 
 // Startup and wiring. The work lives in app/ (documents, links, commands…),
@@ -54,16 +54,25 @@ window.addEventListener('blur', () => document.body.classList.remove('cmd'))
 const testHook = { view: app.editor.view, commands: 0, ready: false }
 if (api.testing) Object.assign(window, { typr: testHook })
 
+/** Runs a command, showing any failure rather than failing silently. */
+function run(id: string, path?: string): void {
+  if ((id === 'undo' || id === 'redo') && (isPaletteOpen() || isPanelOpen())) return
+  Promise.resolve()
+    .then(() => commands[id]?.run(path))
+    .catch((e) => notify(errorText(e)))
+}
+
 async function start(): Promise<void> {
   const init = await api.init()
   app.version = init.version
   app.files = init.files
   applySettings(init.settings)
   session.startEmpty()
-  for (const p of init.pendingOpen) await session.open(p)
 
+  // Listen straight away, before any await, so nothing sent during startup is missed.
   onPaletteClose(() => app.editor.view.focus())
   onPanelClose(() => app.editor.view.focus())
+  onPaletteError((e) => notify(errorText(e)))
   api.onFiles((f) => {
     app.files = f
     drawSidebar()
@@ -71,8 +80,7 @@ async function start(): Promise<void> {
   api.onSettings(applySettings)
   api.onOpen((p) => session.open(p))
   api.onCommand(({ id, path }) => {
-    if ((id === 'undo' || id === 'redo') && (isPaletteOpen() || isPanelOpen())) return
-    commands[id]?.run(path)
+    run(id, path)
     testHook.commands++
   })
   api.onFileChanged((p) => session.fileChanged(p))
@@ -87,6 +95,7 @@ async function start(): Promise<void> {
     }
   })
 
+  for (const p of init.pendingOpen) await session.open(p)
   if (!app.settings.librarySet) void chooseLibrary(true)
   testHook.ready = true
 }

@@ -4,7 +4,7 @@ import { existsSync } from 'fs'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
 import { isImagePath } from '../shared/files'
-import { refreshFiles, registerIpc } from './ipc'
+import { refreshFiles, registerIpc, trustPath } from './ipc'
 import { scan, watchLibrary } from './library'
 import { followAppearanceInDock } from './dock'
 import { buildMenu } from './menu'
@@ -26,7 +26,10 @@ onSettingChange((key) => {
 
 setWatchEvents({
   changed: (path) => sendToRenderer('file-changed', path),
-  moved: (from, to) => sendToRenderer('file-moved', from, to),
+  moved: (from, to) => {
+    trustPath(to)
+    sendToRenderer('file-moved', from, to)
+  },
   gone: (path) => sendToRenderer('file-gone', path),
   candidates: async () => (await scan(settings.library)).filter((f) => !f.endsWith('/')).map((f) => join(settings.library, f))
 })
@@ -51,11 +54,12 @@ app.whenReady().then(() => {
   if (testing) app.dock?.hide()
   else followAppearanceInDock()
   buildMenu(settings, send)
-  watchLibrary(settings.library, refreshFiles)
-  if (!getWindow()) createWindow()
   app.on('activate', () => {
     if (!getWindow()) createWindow()
   })
+  // The window first, so a missing library folder can never stop Typr opening.
+  if (!getWindow()) createWindow()
+  watchLibrary(settings.library, refreshFiles)
 })
 
 app.on('before-quit', () => setQuitting(true))

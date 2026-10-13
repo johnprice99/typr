@@ -39,7 +39,8 @@ describe('Enter in lists and quotes', () => {
     ['- [ ] task\nnext\n\np', '- [ ] task\n- [ ] next\n\np'],
     ['1. a\nb\n\np', '1. a\n2. b\n\np'],
     ['> quote\n\nafter', '> quote\n\nafter'],
-    ['* only\n\nafter', '* only\n\nafter']
+    ['* only\n\nafter', '* only\n\nafter'],
+    ['```\n- \n', '```\n- \n']
   ])('typing %j gives %j', (keys, result) => {
     const e = editor('')
     e.type(keys)

@@ -98,37 +98,48 @@ export function createWindow(): void {
 
   // Let the renderer save before the window goes away. If the save fails,
   // ask before throwing the changes away; "Don't Quit" cancels the quit.
+  let noAnswer: NodeJS.Timeout | undefined
   w.on('close', (e) => {
-    if (closing) return
+    // Always hold the window while a save (or the "couldn't be saved" question)
+    // is in progress, including when ⌘Q or a logout asks again.
     e.preventDefault()
+    if (closing) return
     closing = true
     const maximized = w.isFullScreen() ? settings.window.maximized : w.isMaximized()
     settings.window = { maximized, bounds: w.getNormalBounds() }
     saveSettings()
     let done = false
     const finish = (): void => {
-      if (done) return
+      if (done || w.isDestroyed()) return
       done = true
+      clearTimeout(noAnswer)
       flushResolve = null
       watchCurrent(null)
       w.destroy()
     }
-    // If the window doesn't answer at all (e.g. it has crashed), don't hang.
-    const noAnswer = setTimeout(finish, 4000)
-    flushResolve = (saved, title) => {
-      clearTimeout(noAnswer)
-      flushResolve = null
-      if (saved) return finish()
-      void askToDiscard(w, title).then((discard) => {
+    const decide = (title: string, unanswered: boolean): void => {
+      void askToDiscard(w, title, unanswered).then((discard) => {
         if (discard) return finish()
         closing = false
         quitting = false
       })
     }
+    // If the window doesn't answer (e.g. it has hung), ask rather than closing regardless.
+    noAnswer = setTimeout(() => {
+      flushResolve = null
+      decide('Your document', true)
+    }, 4000)
+    flushResolve = (saved, title) => {
+      clearTimeout(noAnswer)
+      flushResolve = null
+      if (saved) finish()
+      else decide(title, false)
+    }
     sendToRenderer('flush')
   })
   w.on('closed', () => {
     // (window-all-closed then quits the app if ⌘Q started this.)
+    clearTimeout(noAnswer)
     if (win === w) win = null
     rendererReady = false
   })
@@ -157,11 +168,13 @@ export function createWindow(): void {
   else w.loadFile(join(__dirname, '../renderer/index.html'))
 }
 
-async function askToDiscard(w: BrowserWindow, title: string): Promise<boolean> {
+async function askToDiscard(w: BrowserWindow, title: string, unanswered: boolean): Promise<boolean> {
+  if (w.isDestroyed()) return true
+  const action = quitting ? 'quit' : 'close the window'
   const { response } = await dialog.showMessageBox(w, {
     type: 'warning',
-    message: `“${title}” couldn't be saved`,
-    detail: `If you ${quitting ? 'quit' : 'close the window'} now, your latest changes will be lost.`,
+    message: unanswered ? "Typr couldn't confirm your document was saved" : `“${title}” couldn't be saved`,
+    detail: `If you ${action} now, your latest changes may be lost.`,
     buttons: [quitting ? "Don't Quit" : "Don't Close", quitting ? 'Quit Anyway' : 'Close Anyway'],
     defaultId: 0,
     cancelId: 0

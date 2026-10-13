@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, renameSync, unlinkSync, writeFileSync } from 'fs'
+import { chmodSync, existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { expect, settle, test } from './fixtures'
 
@@ -151,5 +151,78 @@ test.describe('files changed outside Typr', () => {
     await expect(t.page.locator('#title')).toHaveText('Untitled')
     await settle(t.page)
     expect(t.ls()).toEqual([])
+  })
+})
+
+test.describe('fixes from the second review', () => {
+  test('Markdown spanning a line break does not break the formatted view or autosave', async ({ launch }) => {
+    const t = await launch({
+      files: {
+        'Wrapped.md': '# Wrapped\n\n![a long\nalt](x.png) and [a link](\nhttps://x.com) and {==text==}{>>a\nnote<<}\n\nEnd.'
+      }
+    })
+    await t.open(join(t.lib, 'Wrapped.md'))
+    await expect(t.page.locator('#title')).toHaveText('Wrapped')
+    await t.select((await t.text()).length)
+    expect(await t.lineShown(1)).toBe('Wrapped')
+    await t.page.keyboard.insertText(' More.')
+    await settle(t.page)
+    expect(t.read('Wrapped.md').endsWith('End. More.')).toBe(true)
+    expect(t.errors).toEqual([])
+  })
+
+  test('Windows line endings are kept, and edits from other apps are taken', async ({ launch }) => {
+    const t = await launch({ files: { 'Win.md': 'one\r\ntwo\r\n', 'Other.md': 'other' } })
+    await t.open(join(t.lib, 'Win.md'))
+    await expect(t.page.locator('#title')).toHaveText('Win')
+    // Opening and leaving must not rewrite the file.
+    await t.open(join(t.lib, 'Other.md'))
+    await expect(t.page.locator('#title')).toHaveText('Other')
+    expect(t.read('Win.md')).toBe('one\r\ntwo\r\n')
+    // Another app edits it while it's open: Typr takes the change and doesn't make a conflict copy.
+    await t.open(join(t.lib, 'Win.md'))
+    await expect(t.page.locator('#title')).toHaveText('Win')
+    writeFileSync(join(t.lib, 'Win.md'), 'one\r\ntwo\r\nthree\r\n')
+    await expect.poll(() => t.text(), { timeout: 5000 }).toBe('one\ntwo\nthree\n')
+    // Typing keeps the Windows line endings.
+    await t.select((await t.text()).length)
+    await t.page.keyboard.insertText('four')
+    await settle(t.page)
+    expect(t.read('Win.md')).toBe('one\r\ntwo\r\nthree\r\nfour')
+    expect(t.ls()).toEqual(['Other.md', 'Win.md'])
+  })
+
+  test('if the file is deleted just before you move on, your words are saved as a new file', async ({ launch }) => {
+    const t = await launch({ files: { 'Doomed.md': 'start' } })
+    await t.open(join(t.lib, 'Doomed.md'))
+    await expect(t.page.locator('#title')).toHaveText('Doomed')
+    await t.setText('start and my last words')
+    unlinkSync(join(t.lib, 'Doomed.md'))
+    await t.command('new') // straight away: before the watcher can notice
+    await expect.poll(() => t.ls()).toEqual(['Doomed.md'])
+    expect(t.read('Doomed.md')).toBe('start and my last words')
+  })
+
+  test('a file outside the library that is renamed in Finder keeps saving', async ({ launch }) => {
+    const t = await launch()
+    const before = join(t.outside, 'a.md')
+    writeFileSync(before, 'hello')
+    await t.open(before)
+    await expect(t.page.locator('#title')).toHaveText('a')
+    renameSync(before, join(t.outside, 'b.md'))
+    await expect(t.page.locator('#title')).toHaveText('b', { timeout: 5000 })
+    await t.setText('hello again')
+    await settle(t.page)
+    expect(readFileSync(join(t.outside, 'b.md'), 'utf8')).toBe('hello again')
+    await expect(t.page.locator('#toast')).not.toContainText("Couldn't save")
+  })
+
+  test('Move to Trash on an unsaved draft discards it instead of saving it', async ({ launch }) => {
+    const t = await launch()
+    await t.setText('throwaway words')
+    await t.command('trash')
+    await settle(t.page)
+    expect(t.ls()).toEqual([])
+    expect(await t.text()).toBe('')
   })
 })

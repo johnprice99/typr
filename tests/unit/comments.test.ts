@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { EditorState } from '@codemirror/state'
 import { ensureSyntaxTree } from '@codemirror/language'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
-import { commentsField, findComments, stripComments } from '../../src/renderer/src/editor/comments'
+import { commentsField, findComments, listComments, stripComments } from '../../src/renderer/src/editor/comments'
 
 describe('comments (CriticMarkup)', () => {
   it('finds a comment and the positions of its parts', () => {
@@ -27,6 +27,11 @@ describe('comments (CriticMarkup)', () => {
     expect(findComments('{==start\n\nend==}{>>note<<}')).toHaveLength(0)
   })
 
+  it('a stray marker or plain highlight never hides a later comment', () => {
+    expect(findComments('A plain {==highlight==} here.\n\nThe {==real==}{>>note<<} one.').map((c) => c.note)).toEqual(['note'])
+    expect(findComments('Stray {== marker\n\nThen {==a==}{>>b<<}').map((c) => c.note)).toEqual(['b'])
+  })
+
   it('treats a note with no text as ordinary text', () => {
     expect(findComments('a lone {>>note<<} here')).toHaveLength(0)
   })
@@ -42,9 +47,9 @@ describe('the live comment list', () => {
 
   it('follows the text as you type elsewhere, without rescanning', () => {
     let state = parsed(make('Intro. The {==harbour==}{>>check<<} was quiet.'))
-    const before = state.field(commentsField)[0]
+    const before = listComments(state)[0]
     state = state.update({ changes: { from: 0, insert: 'New words. ' } }).state
-    const after = state.field(commentsField)[0]
+    const after = listComments(state)[0]
     expect(after.from).toBe(before.from + 'New words. '.length)
     expect(state.sliceDoc(after.textFrom, after.textTo)).toBe('harbour')
     expect(after.note).toBe('check')
@@ -52,14 +57,14 @@ describe('the live comment list', () => {
 
   it('notices when a comment is typed or edited', () => {
     let state = parsed(make('The harbour was quiet.'))
-    expect(state.field(commentsField)).toHaveLength(0)
+    expect(listComments(state)).toHaveLength(0)
     state = state.update({ changes: { from: 4, insert: '{==' } }).state
     state = state.update({ changes: { from: 14, insert: '==}{>>note<<}' } }).state
-    expect(state.field(commentsField).map((c) => c.note)).toEqual(['note'])
+    expect(listComments(state).map((c) => c.note)).toEqual(['note'])
   })
 
   it('ignores comment markup inside code', () => {
     const state = parsed(make('Real {==one==}{>>yes<<}\n\n`{==code==}{>>no<<}`\n\n```\n{==block==}{>>no<<}\n```'))
-    expect(state.field(commentsField).map((c) => c.note)).toEqual(['yes'])
+    expect(listComments(state).map((c) => c.note)).toEqual(['yes'])
   })
 })

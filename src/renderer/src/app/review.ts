@@ -1,5 +1,5 @@
 import { EditorView } from '@codemirror/view'
-import { addComment, Comment, commentAt, commentsField, editComment, resolveComment } from '../editor/comments'
+import { addComment, Comment, commentAt, editComment, listComments, resolveComment } from '../editor/comments'
 import { openList, openPrompt } from '../ui/palette'
 import { app, notify } from './context'
 
@@ -33,6 +33,8 @@ export function promptComment(existing?: Comment): void {
   }
   const text = state.sliceDoc(from, to)
   if (!text.trim()) return notify('Select some text to comment on')
+  // Wrapping text that overlaps another comment would produce broken markup.
+  if (listComments(state).some((c) => c.from < to && c.to > from)) return notify('That overlaps an existing comment')
   if (/\n[ \t]*\n/.test(text)) return notify('A comment can only cover one paragraph')
   openPrompt({
     placeholder: `Comment on “${snippet(text.replace(/\s+/g, ' '), 30)}”…`,
@@ -52,7 +54,7 @@ export function resolveAtCursor(): void {
 
 export function goToComment(): void {
   const view = app.editor.view
-  const list = view.state.field(commentsField)
+  const list = listComments(view.state)
   if (!list.length) return notify('No comments in this document')
   openList({
     placeholder: 'Go to comment…',

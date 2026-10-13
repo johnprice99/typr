@@ -3,10 +3,11 @@ import { Decoration, EditorView, MatchDecorator, ViewPlugin, ViewUpdate, Decorat
 import { syntaxTree } from '@codemirror/language'
 import { autocompletion, CompletionContext, CompletionResult } from '@codemirror/autocomplete'
 import type { SyntaxNode } from '@lezer/common'
+import { WIKILINK } from './syntax'
 
 export type Link = { kind: 'wiki'; target: string } | { kind: 'url'; url: string }
 
-const WIKI = /\[\[([^[\]\n]+?)\]\]/g
+const WIKI = WIKILINK
 
 const bracket = Decoration.mark({ class: 'md-mark' })
 const wiki = Decoration.mark({ class: 'md-wikilink' })

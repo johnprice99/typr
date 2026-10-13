@@ -1,25 +1,34 @@
 import { app, dialog, ipcMain, Menu, MenuItemConstructorOptions, shell } from 'electron'
 import { existsSync, mkdirSync } from 'fs'
 import { mkdir, readFile, rename, stat, writeFile } from 'fs/promises'
-import { basename, dirname, extname, join } from 'path'
+import { basename, dirname, extname, join, resolve } from 'path'
 import { IMAGE_EXTENSIONS, isTextPath, TEXT_EXTENSIONS } from '../shared/files'
 import { FLUSHED, FlushedArgs, Invoke, InvokeChannel } from '../shared/ipc'
-import type { InitialState, LibraryOptions } from '../shared/types'
-import { sanitize, scan, uniquePath, watchLibrary } from './library'
+import { isInside } from '../shared/paths'
+import type { InitialState, LibraryOptions, Settings, WriteResult } from '../shared/types'
+import { sanitize, scan, uniquePath, watchLibrary, writeAtomic } from './library'
 import { documentsLibrary, settings, updateSetting } from './settings'
-import { renamedCurrent, watchCurrent, watchedFile } from './watcher'
+import { locate, renamedCurrent, watchCurrent, watchedFile, wroteCurrent } from './watcher'
 import { testing } from './setup'
 import { flushed, getWindow, send, sendToRenderer, takePendingOpens } from './window'
 
-// Everything the renderer can ask of the file system. The renderer is trusted
-// code, but as a second line of defence it may only change files inside the
-// library, or files it has opened or created this session.
+// Everything the renderer can ask of the file system. Every path is resolved
+// first (so "lib/../../x" can't sneak out), and changes are only allowed inside
+// the library or to files Typr opened or created this session.
 
 const icloudRoot = (): string => join(app.getPath('home'), 'Library/Mobile Documents/com~apple~CloudDocs')
+const icloudLibrary = (): string | null => (existsSync(icloudRoot()) ? join(icloudRoot(), 'Typr') : null)
 
-const inside = (p: string, dir: string): boolean => p === dir || p.startsWith(dir.replace(/\/$/, '') + '/')
+/** An absolute path with any "..", "." or doubled slashes resolved. */
+const abs = (p: string): string => resolve(p)
+
 const known = new Set<string>()
-const inLibrary = (p: string): boolean => inside(p, settings.library)
+const inLibrary = (p: string): boolean => isInside(p, settings.library)
+
+/** Files the user opened or that Typr made (e.g. one renamed in Finder) may be saved. */
+export function trustPath(path: string): void {
+  known.add(abs(path))
+}
 
 function assertText(path: string): void {
   if (!isTextPath(path)) throw new Error(`Not a text file: ${path}`)
@@ -41,6 +50,7 @@ export async function refreshFiles(): Promise<void> {
 }
 
 export async function setLibrary(path: string): Promise<void> {
+  path = abs(path)
   mkdirSync(path, { recursive: true })
   updateSetting('library', path)
   updateSetting('librarySet', true)
@@ -63,17 +73,25 @@ export function registerIpc(): void {
   })
 
   handle('read', async (path: string) => {
+    path = abs(path)
     assertText(path)
     const text = await readFile(path, 'utf8')
-    known.add(path)
+    trustPath(path)
     return text
   })
 
-  handle('write', async (path: string, content: string, expected: string) => {
+  handle('write', async (path: string, content: string, expected: string): Promise<WriteResult> => {
+    path = abs(path)
     assertText(path)
     assertManaged(path)
-    // Never quietly bring back a file that was deleted elsewhere.
-    if (!existsSync(path)) throw new Error(`ENOENT: ${path} no longer exists`)
+    if (!existsSync(path)) {
+      // Renamed or moved in Finder before the watcher noticed? Follow it. Never
+      // quietly bring back a file that was deleted.
+      const moved = await locate(path)
+      if (!moved) throw new Error(`ENOENT: ${path} no longer exists`)
+      trustPath(moved)
+      path = moved
+    }
     // Never quietly overwrite changes another app made since Typr last saw the file.
     const disk = await readFile(path, 'utf8')
     let copy: string | null = null
@@ -81,33 +99,38 @@ export function registerIpc(): void {
       const ext = extname(path)
       copy = uniquePath(dirname(path), `${sanitize(basename(path, ext))} (changed elsewhere)`, ext)
       await writeFile(copy, disk, { encoding: 'utf8', flag: 'wx' })
-      known.add(copy)
+      trustPath(copy)
     }
-    await writeFile(path, content, 'utf8')
-    return copy
+    await writeAtomic(path, content)
+    wroteCurrent(path)
+    return { path, copy }
   })
 
   handle('create', async (dir: string, base: string, content: string) => {
+    dir = abs(dir)
     assertManagedDir(dir)
     await mkdir(dir, { recursive: true })
     const path = uniquePath(dir, sanitize(base), '.md')
     await writeFile(path, content, { encoding: 'utf8', flag: 'wx' })
-    known.add(path)
+    trustPath(path)
     return path
   })
 
   handle('rename', async (path: string, base: string) => {
+    path = abs(path)
     assertManaged(path)
+    if (isInside(settings.library, path)) throw new Error("The library folder itself can't be renamed here")
     const isDir = (await stat(path)).isDirectory()
     const ext = isDir ? '' : extname(path) || '.md'
     const next = uniquePath(dirname(path), sanitize(base), ext, path)
     if (next !== path) await rename(path, next)
-    known.add(next)
+    trustPath(next)
     renamedCurrent(path, next)
     return next
   })
 
   handle('mkdir', async (dir: string, name: string) => {
+    dir = abs(dir)
     if (!inLibrary(dir)) throw new Error('Folders can only be made inside the library')
     const path = uniquePath(dir, sanitize(name), '')
     await mkdir(path, { recursive: true })
@@ -115,10 +138,12 @@ export function registerIpc(): void {
   })
 
   handle('trash', async (path: string) => {
+    path = abs(path)
     assertManaged(path)
-    if (path === settings.library) throw new Error("The library folder itself can't be trashed")
+    // Neither the library nor any folder containing it.
+    if (isInside(settings.library, path)) throw new Error("The library folder itself can't be trashed")
     const current = watchedFile()
-    if (current && inside(current, path)) watchCurrent(null)
+    if (current && isInside(current, path)) watchCurrent(null)
     await shell.trashItem(path)
   })
 
@@ -152,10 +177,16 @@ export function registerIpc(): void {
 
   handle('libraryOptions', (): LibraryOptions => ({
     documents: documentsLibrary(),
-    icloud: existsSync(icloudRoot()) ? join(icloudRoot(), 'Typr') : null
+    icloud: icloudLibrary()
   }))
 
-  handle('setLibrary', (path: string) => setLibrary(path))
+  // The window may only pick one of the offered places; any other folder comes
+  // from the folder dialog (chooseLibrary), never from a path the window supplies.
+  handle('setLibrary', (path: string) => {
+    if (![documentsLibrary(), icloudLibrary()].includes(abs(path)))
+      throw new Error('Choose the library folder with the folder dialog')
+    return setLibrary(path)
+  })
 
   handle('chooseLibrary', async () => {
     const win = getWindow()
@@ -184,6 +215,8 @@ export function registerIpc(): void {
   })
 
   handle('setSetting', (key, value) => {
+    // Where files may be written is only changed through setLibrary / chooseLibrary.
+    if ((['library', 'librarySet', 'window'] as (keyof Settings)[]).includes(key)) throw new Error(`${key} can't be set directly`)
     if (key === 'fullscreen') getWindow()?.setFullScreen(Boolean(value))
     else updateSetting(key, value as never)
   })

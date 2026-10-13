@@ -31,6 +31,13 @@ export interface InitialState {
   version: string
 }
 
+export interface WriteResult {
+  /** Where it was written: the same path, or the file's new place if it was moved. */
+  path: string
+  /** A copy holding another app's changes, if there were any. */
+  copy: string | null
+}
+
 export interface LibraryOptions {
   documents: string
   icloud: string | null
@@ -50,9 +57,10 @@ export interface Api {
   /**
    * Overwrites an existing file. `expected` is what Typr believes is on disk; if
    * another app has changed the file since, its version is first kept as a
-   * "(changed elsewhere)" copy, whose path is returned. Fails with ENOENT if the file has gone.
+   * "(changed elsewhere)" copy. If the file was renamed or moved, it's written in
+   * its new place. Fails with ENOENT if it was deleted.
    */
-  write(path: string, content: string, expected: string): Promise<string | null>
+  write(path: string, content: string, expected: string): Promise<WriteResult>
   /** Creates a new, uniquely named file. Returns its absolute path. */
   create(dir: string, baseName: string, content: string): Promise<string>
   /** Renames, keeping the file in its folder. Returns the new absolute path. */

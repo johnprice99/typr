@@ -1,8 +1,8 @@
-import { RangeSetBuilder, EditorState, StateEffect } from '@codemirror/state'
+import { RangeSetBuilder, StateEffect } from '@codemirror/state'
 import { Decoration, DecorationSet, EditorView } from '@codemirror/view'
-import { HighlightStyle, syntaxTree } from '@codemirror/language'
+import { HighlightStyle } from '@codemirror/language'
 import { tags as t } from '@lezer/highlight'
-import type { SyntaxNode } from '@lezer/common'
+import { inCode } from './syntax'
 
 // Colours live in CSS so light/dark mode is handled in one place.
 export const markdownHighlight = HighlightStyle.define([
@@ -17,13 +17,6 @@ export const markdownHighlight = HighlightStyle.define([
   { tag: t.quote, class: 'md-quote' },
   { tag: t.contentSeparator, class: 'md-hr' }
 ])
-
-function inCode(state: EditorState, pos: number): boolean {
-  for (let n: SyntaxNode | null = syntaxTree(state).resolveInner(pos, 1); n; n = n.parent) {
-    if (n.name === 'FencedCode' || n.name === 'CodeBlock') return true
-  }
-  return false
-}
 
 const HEADING = /^(#{1,6})[ \t]+/
 const LIST = /^([ \t]*)(?:[-*+]|\d+[.)])[ \t]+(?:\[[ xX]\][ \t]+)?/

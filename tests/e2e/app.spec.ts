@@ -122,3 +122,35 @@ test.describe('app chrome', () => {
     expect(result).toContain("Typr didn't open")
   })
 })
+
+test.describe('file-system guards', () => {
+  test('".." cannot be used to reach outside the library', async ({ launch }) => {
+    const t = await launch()
+    const tricks = await t.page.evaluate(async (lib) => {
+      const attempt = (p: Promise<unknown>): Promise<string> =>
+        p.then(
+          () => 'allowed',
+          (e) => String(e)
+        )
+      return {
+        trashParent: await attempt(window.api.trash(`${lib}/..`)),
+        trashUp: await attempt(window.api.trash(`${lib}/../../x.md`)),
+        createUp: await attempt(window.api.create(`${lib}/../..`, 'escape', 'x')),
+        renameLibrary: await attempt(window.api.rename(lib, 'Renamed')),
+        setLibrary: await attempt(window.api.setLibrary('/')),
+        setSetting: await attempt(window.api.setSetting('library', '/'))
+      }
+    }, t.lib)
+    for (const [what, result] of Object.entries(tricks)) expect(result, what).not.toBe('allowed')
+  })
+
+  test('a [[link]] with ".." stays inside the library', async ({ launch }) => {
+    const t = await launch()
+    await t.setText('[[../../Escape]]', 4)
+    await t.command('follow-link')
+    await expect(t.page.locator('#title')).toHaveText('Escape')
+    await t.page.keyboard.insertText('hi')
+    await settle(t.page)
+    expect(t.ls()).toContain('Escape.md')
+  })
+})

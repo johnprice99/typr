@@ -1,4 +1,4 @@
-import { commentsField, stripComments } from '../editor/comments'
+import { listComments, stripComments } from '../editor/comments'
 import { $, app } from './context'
 
 // The quiet line at the bottom right: words, reading time and comments.
@@ -21,7 +21,7 @@ export function updateStats(): void {
   const text = stripComments(sel.empty ? state.doc.toString() : state.sliceDoc(sel.from, sel.to))
   const words = text.match(/[\p{L}\p{N}'’-]+/gu)?.length ?? 0
   const mins = Math.max(1, Math.round(words / 230))
-  const notes = state.field(commentsField).length
+  const notes = listComments(state).length
   const parts = [
     words ? `${words.toLocaleString()} ${sel.empty ? 'words' : 'selected'}` : '',
     words ? `${mins} min` : '',

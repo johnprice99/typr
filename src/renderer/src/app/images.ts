@@ -1,5 +1,5 @@
 import { isImagePath, isTextPath } from '../../../shared/files'
-import { isInside, relativePath, stem } from '../paths'
+import { encodePath, isInside, relativePath, stem } from '../paths'
 import { api, app, notify } from './context'
 import { docDir, open } from './session'
 
@@ -13,7 +13,7 @@ function imageMarkdown(file: string): string {
   const alt = stem(file)
     .replace(/\.[^.]+$/, '')
     .replace(/[[\]]/g, '')
-  return `![${alt}](${encodeURI(target).replace(/\(/g, '%28').replace(/\)/g, '%29')})`
+  return `![${alt}](${encodePath(target)})`
 }
 
 /** Files dropped or pasted onto the page. Returns true if handled. */

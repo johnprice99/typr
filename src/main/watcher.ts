@@ -1,5 +1,5 @@
 import { existsSync, statSync, unwatchFile, watchFile } from 'fs'
-import { readdir } from 'fs/promises'
+import { readdir, stat } from 'fs/promises'
 import { dirname, join } from 'path'
 import { isTextPath } from '../shared/files'
 
@@ -33,8 +33,33 @@ export function watchCurrent(path: string | null): void {
   currentIno = statSync(path, { throwIfNoEntry: false })?.ino ?? 0
   watchFile(path, { interval: 700 }, (now, prev) => {
     if (now.nlink === 0 && prev.nlink !== 0) void lost(path)
-    else if (now.mtimeMs !== prev.mtimeMs) events?.changed(path)
+    else if (now.mtimeMs !== prev.mtimeMs) {
+      // Saves (ours are atomic) give the file a new inode; keep following the latest one.
+      currentIno = now.ino
+      events?.changed(path)
+    }
   })
+}
+
+/** After Typr writes the open file (atomically, so with a new inode), keep following it. */
+export function wroteCurrent(path: string): void {
+  if (current === path) currentIno = statSync(path, { throwIfNoEntry: false })?.ino ?? currentIno
+}
+
+/**
+ * Where the open file went, if it was renamed or moved (found by its inode next
+ * to where it was, then in the library). Null if it was deleted.
+ */
+export async function locate(path: string): Promise<string | null> {
+  if (current !== path || !currentIno) return null
+  const ino = currentIno
+  const dir = dirname(path)
+  const siblings = (await readdir(dir).catch(() => [] as string[])).map((f) => join(dir, f))
+  const elsewhere = (await events?.candidates()) ?? []
+  for (const p of [...siblings, ...elsewhere]) {
+    if (isTextPath(p) && (await stat(p).catch(() => null))?.ino === ino) return p
+  }
+  return null
 }
 
 /** Our own rename: keep watching under the new name without reporting a move. */
@@ -46,7 +71,6 @@ export function renamedCurrent(from: string, to: string): void {
 }
 
 async function lost(path: string): Promise<void> {
-  const ino = currentIno
   // Some editors save by deleting and replacing; give that a moment.
   await new Promise((r) => setTimeout(r, 300))
   if (current !== path) return
@@ -55,13 +79,7 @@ async function lost(path: string): Promise<void> {
     events?.changed(path)
     return
   }
-  let found: string | null = null
-  if (ino) {
-    const dir = dirname(path)
-    const siblings = (await readdir(dir).catch(() => [] as string[])).map((f) => join(dir, f))
-    const elsewhere = (await events?.candidates()) ?? []
-    found = [...siblings, ...elsewhere].find((p) => isTextPath(p) && statSync(p, { throwIfNoEntry: false })?.ino === ino) ?? null
-  }
+  const found = await locate(path)
   if (current !== path) return
   if (found) {
     watchCurrent(found)

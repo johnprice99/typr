@@ -1,12 +1,10 @@
-import { basename, dirname, join, relativeTo, stem } from '../paths'
+import { basename, dirname, join, relativeTo, stem, tildify as home } from '../paths'
 import { openList, PaletteItem } from '../ui/palette'
 import { renderSidebar } from '../ui/sidebar'
 import { $, api, app, notify } from './context'
 import { current, open, openNamed, recents } from './session'
 
 // The library: choosing its folder, the sidebar, and Go to File.
-
-const home = (p: string): string => p.replace(/^\/Users\/[^/]+/, '~')
 
 export async function chooseLibrary(firstRun = false): Promise<void> {
   const opts = await api.libraryOptions()
@@ -32,9 +30,15 @@ export async function chooseLibrary(firstRun = false): Promise<void> {
   })
 }
 
+let drawn = ''
+
+/** Redraws the sidebar, but only if something it shows has changed. */
 export function drawSidebar(): void {
   const lib = app.settings.library
   const doc = current()
+  const key = `${lib}\n${doc?.path ?? ''}\n${app.files.join('\n')}`
+  if (key === drawn) return
+  drawn = key
   renderSidebar($('sidebar'), app.files, basename(lib), doc?.path ? relativeTo(doc.path, lib) : null, {
     open: (rel) => open(join(lib, rel)),
     menu: (rel, isDir) => api.itemMenu(rel ? join(lib, rel) : lib, isDir)

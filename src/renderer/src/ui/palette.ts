@@ -2,7 +2,7 @@ export interface PaletteItem {
   label: string
   detail?: string
   hint?: string
-  run: () => void
+  run: () => unknown
 }
 
 interface ListOptions {
@@ -17,7 +17,7 @@ interface ListOptions {
 interface PromptOptions {
   placeholder: string
   value?: string
-  submit: (value: string) => void
+  submit: (value: string) => unknown
 }
 
 /** Subsequence match with bonuses for runs and word starts. Higher is better. */
@@ -40,10 +40,24 @@ function score(query: string, text: string): number | null {
 }
 
 let active: { close: () => void } | null = null
-let onDone: () => void = () => {}
+const closeListeners: (() => void)[] = []
+let reportError: (e: unknown) => void = (e) => console.error(e)
 
+/** Adds a listener for when the palette closes. */
 export function onPaletteClose(cb: () => void): void {
-  onDone = cb
+  closeListeners.push(cb)
+}
+
+/** Where failures of a chosen item or a submitted prompt are reported. */
+export function onPaletteError(cb: (e: unknown) => void): void {
+  reportError = cb
+}
+
+/** Runs something the user chose, reporting (not swallowing) any failure. */
+const runSafely = (fn: () => unknown): void => {
+  Promise.resolve()
+    .then(fn)
+    .catch((e) => reportError(e))
 }
 
 export function isPaletteOpen(): boolean {
@@ -72,7 +86,7 @@ function shell(
     if (!overlay.isConnected) return
     overlay.remove()
     active = null
-    onDone()
+    for (const cb of closeListeners) cb()
     if (!picked) onCancel?.()
   }
   overlay.addEventListener('mousedown', (e) => {
@@ -137,7 +151,7 @@ export function openList(opts: ListOptions): void {
   const pick = (i: number): void => {
     const item = shown[i]
     close(Boolean(item))
-    item?.run()
+    if (item) runSafely(() => item.run())
   }
 
   input.addEventListener('input', () => {
@@ -172,7 +186,7 @@ export function openPrompt(opts: PromptOptions): void {
       e.preventDefault()
       const value = input.value.trim()
       close(true)
-      if (value) opts.submit(value)
+      if (value) runSafely(() => opts.submit(value))
     } else if (e.key === 'Escape') {
       e.preventDefault()
       close()

@@ -1,9 +1,10 @@
 import './setup'
 import { app } from 'electron'
-import { mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { mkdirSync, readFileSync } from 'fs'
 import { dirname, join } from 'path'
 import type { Settings } from '../shared/types'
 import { normalizeSettings } from '../shared/settings'
+import { writeAtomicSync } from './library'
 
 // Settings live in one JSON file in the app's user-data folder.
 
@@ -30,7 +31,7 @@ export const onSettingChange = (cb: (key: keyof Settings) => void): void => {
 
 export function saveSettings(): void {
   mkdirSync(dirname(settingsPath()), { recursive: true })
-  writeFileSync(settingsPath(), JSON.stringify(settings, null, 2))
+  writeAtomicSync(settingsPath(), JSON.stringify(settings, null, 2))
 }
 
 export function updateSetting<K extends keyof Settings>(key: K, value: Settings[K]): void {
