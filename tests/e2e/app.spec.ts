@@ -57,6 +57,15 @@ test.describe('app chrome', () => {
     const find = (label: string): string[] => menus.find((m) => m.label === label)!.items
     expect(find('Edit')).toContain('Find and Replace… [CmdOrCtrl+Shift+F]')
     expect(find('View')).toContain('Command Palette… [CmdOrCtrl+Shift+P]')
+    expect(find('View')).toEqual(
+      expect.arrayContaining([
+        'Bigger Text [CmdOrCtrl+=]',
+        'Smaller Text [CmdOrCtrl+-]',
+        'Actual Size [CmdOrCtrl+0]',
+        'Appearance'
+      ])
+    )
+    expect(find('Typr')).not.toContain('Settings… [CmdOrCtrl+,]')
     expect(find('File')).toContain('Rename… [CmdOrCtrl+Shift+R]')
     expect(find('Format')).toEqual([
       'Bold [CmdOrCtrl+B]',
@@ -77,15 +86,28 @@ test.describe('app chrome', () => {
     expect(items.some((i) => /Appearance: Dark/.test(i))).toBe(true)
   })
 
-  test('Settings works from the keyboard and saves', async ({ launch }) => {
+  test('View › Appearance switches System / Light / Dark, ticked and saved', async ({ launch }) => {
     const t = await launch()
-    await t.command('settings')
-    await expect(t.page.locator('.setting-label')).toHaveText(['Appearance', 'Text size'])
-    await expect(t.page.locator('.stepper-value')).toHaveText('100%')
-    await t.page.keyboard.press('ArrowRight') // Appearance: Light → Dark
-    await expect(t.page.locator('.segmented [aria-checked=true]').first()).toHaveText('Dark')
+    const appearance = (): Promise<{ label: string; checked: boolean }[]> =>
+      t.app.evaluate(({ Menu }) => {
+        const view = Menu.getApplicationMenu()!.items.find((m) => m.label === 'View')!.submenu!
+        const sub = view.items.find((i) => i.label === 'Appearance')!.submenu!
+        return sub.items.map((i) => ({ label: i.label, checked: i.checked }))
+      })
+    expect(await appearance()).toEqual([
+      { label: 'System', checked: false },
+      { label: 'Light', checked: true },
+      { label: 'Dark', checked: false }
+    ])
+    await t.command('theme-dark')
     await expect.poll(() => t.savedSettings().theme).toBe('dark')
-    await t.page.keyboard.press('Escape')
+    await expect.poll(async () => (await appearance()).find((i) => i.checked)?.label).toBe('Dark')
+    // The app switches to dark (the window follows macOS's appearance; an invisible
+    // test window doesn't receive that change, so check the app itself).
+    expect(await t.app.evaluate(({ nativeTheme }) => [nativeTheme.themeSource, nativeTheme.shouldUseDarkColors])).toEqual([
+      'dark',
+      true
+    ])
   })
 
   test('with no folder open, a new document asks where to go when you save', async ({ launch }) => {
@@ -325,6 +347,7 @@ test.describe('open files', () => {
     await t.open(loose)
     await expect(t.page.locator('#title')).toHaveText('Loose idea')
     await t.command('rename')
+    await expect(t.page.locator('.palette input')).toBeFocused()
     await t.page.keyboard.press('Meta+a')
     await t.page.keyboard.insertText('Better idea')
     await t.page.keyboard.press('Enter')

@@ -1,5 +1,4 @@
 import type { FocusMode, Settings } from '../../../shared/types'
-import { refreshPanel } from '../ui/panels'
 import { api, app, notify } from './context'
 
 // Applying settings to the page, and the small helpers commands use to change them.
@@ -37,5 +36,4 @@ export function applySettings(next: Settings): void {
   }
   if (!prev || prev.focus !== next.focus) editor.setFocusMode(next.focus)
   if (prev && prev.textScale !== next.textScale) void document.fonts.ready.then(() => editor.refreshLayout())
-  refreshPanel(next)
 }

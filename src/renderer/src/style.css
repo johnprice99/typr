@@ -824,7 +824,7 @@ body {
   color: rgba(255, 255, 255, 0.75);
 }
 
-/* ---------- settings & about ---------- */
+/* ---------- about ---------- */
 
 .panel {
   position: absolute;
@@ -843,71 +843,6 @@ body {
   font-size: 15px;
   font-weight: 600;
 }
-.setting {
-  display: grid;
-  grid-template-columns: 96px 1fr;
-  align-items: center;
-  gap: 12px;
-  margin-top: 14px;
-}
-.setting-label {
-  color: var(--faint);
-}
-.segmented {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 3px;
-  border-radius: 8px;
-  background: var(--line);
-}
-.segmented button {
-  flex: 1;
-  padding: 6px 10px;
-  border: 0;
-  border-radius: 6px;
-  font: inherit;
-  color: var(--fg);
-  background: transparent;
-  white-space: nowrap;
-  cursor: default;
-}
-.stepper {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 8px;
-  background: var(--line);
-}
-.stepper button {
-  width: 30px;
-  padding: 4px 0;
-  border: 0;
-  border-radius: 6px;
-  font: inherit;
-  font-size: 15px;
-  line-height: 1;
-  color: var(--fg);
-  background: transparent;
-}
-.stepper button:hover {
-  background: var(--bg);
-}
-.stepper button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-.stepper-value {
-  min-width: 52px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-.segmented button[aria-checked='true'] {
-  background: var(--bg);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-}
-.segmented button:focus-visible,
 .panel button.link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;

@@ -1,7 +1,7 @@
 import { redo, undo } from '@codemirror/commands'
 import { openFind } from '../editor/find'
 import { openList, PaletteItem } from '../ui/palette'
-import { openAbout, openSettings, THEMES } from '../ui/panels'
+import { openAbout, THEMES } from '../ui/panels'
 import { FOCUS, label, set, setFocus, stepText } from './appearance'
 import { api, app, notify, errorText } from './context'
 import { pickImage } from './images'
@@ -132,11 +132,6 @@ export const commands: Record<string, Cmd> = {
     run: () => set('fullscreen', !app.settings.fullscreen)
   },
 
-  settings: {
-    title: 'Settings…',
-    keys: '⌘,',
-    run: () => openSettings(app.settings, { set, step: stepText })
-  },
   about: { title: 'About Typr', run: () => openAbout(app.version) },
   palette: { title: 'Command Palette', keys: '⇧⌘P', run: showPalette, hidden: true },
   undo: { title: 'Undo', run: () => undo(app.editor.view), hidden: true },

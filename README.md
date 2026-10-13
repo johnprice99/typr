@@ -12,7 +12,7 @@ A quiet Markdown editor. Open it and type.
 - Tables: **Insert Table**, then Tab / ⇧Tab between cells (Tab in the last cell adds a row). They render as a table when you're not editing them.
 - Images: **Insert Image…** or drag one onto the page. Typr links to the file where it is (a relative link within the same open folder, absolute otherwise); nothing is copied. Images from the internet show a placeholder until you click, so opening a document never tells a website you read it.
 - Comments for proofreading: select text, ⇧⌘M, type a note. They're stored in the file as [CriticMarkup](https://fletcher.github.io/MultiMarkdown-6/syntax/critic.html) (`{==text==}{>>note<<}`), shown as highlighted text; hover to read, edit or resolve. **Go to Comment…** lists them all.
-- Settings (⌘,): appearance and text size.
+- View › Appearance: System, Light or Dark. Text size: ⌘+, ⌘− and ⌘0 (also in the View menu).
 - If another app changes a file while you're typing in it, nothing is lost: their version is kept as a “(changed elsewhere)” copy next to it.
 
 ```sh
@@ -53,7 +53,7 @@ Everything is in the command palette (⇧⌘P), so you never need the mouse.
 | ⌘\\          | Show / hide library                                             |
 | ⌘D           | Focus: Off → Paragraph → Sentence                               |
 | ⌘E           | Show Markdown / formatted view                                  |
-| ⌘,           | Settings                                                        |
+| ⌘+ / ⌘− / ⌘0 | Bigger / smaller / actual text size                             |
 | ⌃⌘F          | Full screen                                                     |
 | ⌘F           | Find (↩ next, ⇧↩ previous, Esc close)                           |
 | ⇧⌘F          | Find and replace (↩ replace, ⌘↩ replace all)                    |
@@ -71,5 +71,5 @@ Fonts: the Mac's own. The formatted view uses the system font; the Markdown view
 - `src/preload/` — the bridge to the window. Every message is typed in `src/shared/ipc.ts`.
 - `src/renderer/src/app/` — the app: documents and saving (`session`), links, images, comments, open folders (`library`), commands.
 - `src/renderer/src/editor/` — the CodeMirror editor and its features (formatted view, focus, find, tables, comments).
-- `src/renderer/src/ui/` — the palette, settings and about panels, and the library sidebar.
+- `src/renderer/src/ui/` — the palette, the about panel, and the library sidebar.
 - `tests/unit/` (Vitest) and `tests/e2e/` (Playwright).

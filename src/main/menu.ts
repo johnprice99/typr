@@ -27,15 +27,7 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
   const template: MenuItemConstructorOptions[] = [
     {
       label: app.name,
-      submenu: [
-        cmd(`About ${app.name}`, 'about'),
-        sep,
-        cmd('Settings…', 'settings', 'CmdOrCtrl+,'),
-        sep,
-        { role: 'hide' },
-        sep,
-        { role: 'quit' }
-      ]
+      submenu: [cmd(`About ${app.name}`, 'about'), sep, { role: 'hide' }, sep, { role: 'quit' }]
     },
     {
       label: 'File',
@@ -98,6 +90,14 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
         { ...cmd('Bigger Text', 'text-bigger', 'CmdOrCtrl+Plus'), visible: false, acceleratorWorksWhenHidden: true },
         cmd('Smaller Text', 'text-smaller', 'CmdOrCtrl+-'),
         cmd('Actual Size', 'text-reset', 'CmdOrCtrl+0'),
+        {
+          label: 'Appearance',
+          submenu: [
+            radio('System', 'theme-system', settings.theme === 'system'),
+            radio('Light', 'theme-light', settings.theme === 'light'),
+            radio('Dark', 'theme-dark', settings.theme === 'dark')
+          ]
+        },
         sep,
         check('Library', 'toggle-sidebar', settings.sidebar, 'CmdOrCtrl+\\'),
         {
