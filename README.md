@@ -36,7 +36,7 @@ npm run format      # format the code with Prettier
 
 End-to-end tests launch the app once, invisibly and without a Dock icon, and reset it with a throwaway library and settings before each test, so they never touch your documents, settings, clipboard or Recent Documents. The run stops after 5 minutes or 10 failures.
 
-Icons: `build/Typr.icon` (made in Icon Composer) is the app icon, which macOS shows in light, dark or tinted style to match your Mac; `build/icon.icns` is the fallback for older macOS. `resources/icon-light.png` and `resources/icon-dark.png` are used in the About panel, by the website, and as the Dock icon when running from source. Packaged builds register `.md`, `.markdown` and `.txt`, so **Open With → Typr** works in Finder.
+Icons: `build/Typr.icon` (made in Icon Composer) is the app icon, which macOS shows in light, dark or tinted style to match your Mac; `build/icon.icns` is the fallback for older macOS. `resources/icon-light.png` and `resources/icon-dark.png` are used in the About panel and as the Dock icon when running from source; the website shows the light one. Packaged builds register `.md`, `.markdown` and `.txt`, so **Open With → Typr** works in Finder.
 
 ## Website
 
