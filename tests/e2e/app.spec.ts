@@ -136,6 +136,9 @@ test.describe('app chrome', () => {
     expect(readdirSync(stories).sort()).toEqual(['Chapter two.md', 'Chapter.md'])
     await t.command('close-folder', stories)
     await expect(t.page.locator('.sidebar-header')).toHaveText(['library'])
+    // Its files leave Go to File too, even ones you opened recently.
+    await t.command('quick-open')
+    await expect(t.page.locator('.palette-item .label')).toHaveText(['Note'])
   })
 
   test('subfolders start collapsed; the way to the open document opens', async ({ launch }) => {
@@ -239,5 +242,22 @@ test.describe('remote images and fonts', () => {
       return box(editorFont) === box('Menlo') && box('Menlo') !== box('Courier')
     })
     expect(usesMenlo).toBe(true)
+  })
+})
+
+test.describe('opening folders', () => {
+  test('Open Folder adds the chosen folder to the sidebar', async ({ launch }) => {
+    const t = await launch({ files: { 'Note.md': '# Note' } })
+    const other = join(t.outside, 'Typr')
+    mkdirSync(other)
+    writeFileSync(join(other, 'Scratch pad.md'), 'scratch')
+    // Stand in for the folder chooser.
+    await t.app.evaluate(({ dialog }, path) => {
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [path] })) as never
+    }, other)
+    await t.command('open-folder')
+    await t.command('toggle-sidebar')
+    await expect(t.page.locator('.sidebar-header')).toHaveText(['library', 'Typr'])
+    await expect.poll(() => t.savedSettings().folders).toEqual([t.lib, other])
   })
 })

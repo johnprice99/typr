@@ -369,6 +369,8 @@ function remember(p: string): void {
   api.addRecent(p)
 }
 const forget = (p: string): void => saveRecents(recents().filter((r) => r !== p))
+/** A folder was closed: its files leave the recent list too. */
+export const forgetRecentsIn = (folder: string): void => saveRecents(recents().filter((r) => !isInside(r, folder)))
 
 // ---------- file commands ----------
 

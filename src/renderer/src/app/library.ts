@@ -2,7 +2,7 @@ import { basename, dirname, isInside, join, relativeTo, stem, tildify } from '..
 import { openList } from '../ui/palette'
 import { renderSidebar } from '../ui/sidebar'
 import { $, api, app, notify } from './context'
-import { closeDoc, current, open, openNamed, recents } from './session'
+import { closeDoc, current, forgetRecentsIn, open, openNamed, recents } from './session'
 
 // Open folders: the sidebar, opening and closing folders, Go to File, and
 // asking where a new document should go.
@@ -25,6 +25,7 @@ export function closeFolder(path?: string): void {
     const doc = current().path
     if (doc && isInside(doc, p) && !(await closeDoc())) return
     await api.closeFolder(p)
+    forgetRecentsIn(p)
     notify(`Closed “${basename(p)}”`)
   }
   if (path) return void close(path)
@@ -65,10 +66,14 @@ export function drawSidebar(): void {
   })
 }
 
-/** Go to File: recent files first, then every open folder; typing a new name creates it. */
+/**
+ * Go to File: the documents in your open folders, recently used ones first;
+ * typing a new name creates it. (Files opened from elsewhere are in File › Open Recent.)
+ */
 export function quickOpen(): void {
   const docs = app.folders.flatMap((f) => f.entries.filter((e) => !e.endsWith('/')).map((e) => join(f.path, e)))
-  const all = [...new Set([...recents(), ...docs])].filter((p) => p !== current().path)
+  const inFolders = new Set(docs)
+  const all = [...new Set([...recents().filter((p) => inFolders.has(p)), ...docs])].filter((p) => p !== current().path)
   const where = (p: string): string => {
     const folder = folderOf(p)
     if (!folder) return tildify(dirname(p))

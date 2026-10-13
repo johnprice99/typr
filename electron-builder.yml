@@ -16,8 +16,13 @@ mac:
   category: public.app-category.productivity
   target:
     - dmg
-  # Unsigned build for personal use. Add a Developer ID here to distribute.
-  identity: null
+  # Signed ad hoc (free, no Apple account) so macOS knows the app as
+  # com.johnprice.typr, e.g. when remembering Documents folder access.
+  # Replace "-" with a Developer ID certificate to distribute.
+  identity: '-'
+  # Hardened runtime is only needed for Apple notarisation; with ad-hoc signing
+  # it blocks Electron's own (differently signed) frameworks from loading.
+  hardenedRuntime: false
 fileAssociations:
   - ext: [md, markdown]
     name: Markdown Document
