@@ -21,6 +21,8 @@ mac:
   # Hardened runtime is only needed for Apple notarisation; with ad-hoc signing
   # it blocks Electron's own (differently signed) frameworks from loading.
   hardenedRuntime: false
+  # Typr is in English, so Chromium's other ~200 languages (about 50 MB) aren't shipped.
+  electronLanguages: [en, en_GB]
 dmg:
   # A fixed name, so the website's download link (the newest release's
   # Typr-mac-arm64.dmg) keeps working from one version to the next.

@@ -6,7 +6,7 @@ Minimal macOS (Apple silicon only) Markdown editor. Electron + electron-vite + C
 
 - `npm run check` — types, Prettier, unit tests. Run before every commit.
 - `npm run build` then `perl -e 'alarm 240; exec @ARGV' npx playwright test --reporter=line`, then `pkill -f "work/typr/node_modules/electron"`. ~35 s.
-- `npm run dist` — clears `dist/`, builds `Typr-mac-arm64.dmg` + signed `.sig`, and leaves `dist/mac-arm64/Typr.app`.
+- `npm run dist` — clears `dist/`, builds `Typr-mac-arm64.dmg` + signed `.sig`, and leaves `dist/mac-arm64/Typr.app`. Don't run it while the user is running a copy from `dist/`.
 - `npm run screenshots` — retakes `docs/images/*.png` from the real app.
 
 ## Layout
@@ -44,6 +44,7 @@ Minimal macOS (Apple silicon only) Markdown editor. Electron + electron-vite + C
 ## Build gotchas
 
 - Icon: `build/Typr.icon` (Icon Composer), compiled by electron-builder via Xcode's `actool`. `npm run dist` puts Xcode on PATH because `xcode-select` points at the Command Line Tools. The light, dark and tinted Dock icons follow the user's macOS icon-style setting, not Typr.
+- Size: almost all of Typr is Electron. Only English Chromium languages ship (`electronLanguages` in `electron-builder.yml`). The dmg stays electron-builder's default zlib (UDZO): LZMA would be about 25% smaller but takes twice as long to open and install.
 - Ad-hoc signing (`identity: '-'`, no hardened runtime). The bundle id is `com.johnprice.typr`. Not notarised, so downloads show Gatekeeper's warning once.
 
 ## Releasing (the user publishes)
