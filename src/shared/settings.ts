@@ -47,6 +47,7 @@ export function normalizeSettings(saved: Record<string, unknown>): Settings {
     focus: oneOf(focus, FOCUS_MODES, 'off'),
     textScale: nearestScale(textScale),
     showMarkdown: bool(saved.showMarkdown, false),
+    typewriter: bool(saved.typewriter, false),
     theme: oneOf(saved.theme, THEMES, 'system'),
     // Full screen is never restored at launch; the window starts maximised instead.
     fullscreen: false,

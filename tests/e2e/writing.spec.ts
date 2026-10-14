@@ -328,3 +328,33 @@ test.describe('fixes from the third review', () => {
     await expect(t.page.locator('#title')).toHaveText('Other')
   })
 })
+
+test.describe('typewriter scrolling', () => {
+  test('keeps the line you’re typing near the middle of the window', async ({ launch }) => {
+    const t = await launch()
+    await t.setText(Array.from({ length: 120 }, (_, i) => `Line ${i + 1} of a long story.`).join('\n\n'))
+    await t.command('toggle-typewriter')
+    await expect.poll(() => t.savedSettings().typewriter).toBe(true)
+    /** How far down the window the cursor is (0 = top, 1 = bottom). */
+    const where = (): Promise<number> =>
+      t.page.evaluate(() => {
+        const v = (window as never as { typr: { view: import('@codemirror/view').EditorView } }).typr.view
+        const c = v.coordsAtPos(v.state.selection.main.head)
+        const box = v.scrollDOM.getBoundingClientRect()
+        return c ? (c.top - box.top) / box.height : -1
+      })
+    await t.page.keyboard.insertText(' More.')
+    await expect.poll(where).toBeGreaterThan(0.35)
+    expect(await where()).toBeLessThan(0.65)
+    // Moving up with the keyboard keeps it there too.
+    for (let i = 0; i < 12; i++) await t.page.keyboard.press('ArrowUp')
+    await expect.poll(where).toBeGreaterThan(0.35)
+    expect(await where()).toBeLessThan(0.65)
+    // It's a tick in the View menu.
+    const ticked = await t.app.evaluate(({ Menu }) => {
+      const view = Menu.getApplicationMenu()!.items.find((m) => m.label === 'View')!.submenu!
+      return view.items.find((i) => i.label === 'Typewriter Scrolling')?.checked
+    })
+    expect(ticked).toBe(true)
+  })
+})

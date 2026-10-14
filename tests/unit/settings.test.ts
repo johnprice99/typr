@@ -29,6 +29,7 @@ describe('settings from disk', () => {
       focus: 'off',
       textScale: 1,
       showMarkdown: false,
+      typewriter: false,
       theme: 'system',
       fullscreen: false,
       window: { maximized: true, bounds: undefined }
@@ -36,11 +37,11 @@ describe('settings from disk', () => {
   })
 
   it('upgrades older formats', () => {
-    const s = normalizeSettings({ focus: true, focusScope: 'sentence', textScale: 1.2, font: 'serif', typewriter: true })
+    const s = normalizeSettings({ focus: true, focusScope: 'sentence', textScale: 1.2, font: 'serif' })
     expect(s.focus).toBe('sentence')
     expect(normalizeSettings({ focus: false }).focus).toBe('off')
     expect(s.textScale).toBe(1.2)
-    expect('typewriter' in s).toBe(false)
+    expect('font' in s).toBe(false)
   })
 
   it('ignores nonsense rather than crashing', () => {

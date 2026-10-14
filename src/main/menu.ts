@@ -16,7 +16,7 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
     checked,
     click: () => send({ id })
   })
-  const check = (label: string, id: string, checked: boolean, accelerator: string): MenuItemConstructorOptions => ({
+  const check = (label: string, id: string, checked: boolean, accelerator?: string): MenuItemConstructorOptions => ({
     label,
     type: 'checkbox',
     checked,
@@ -117,6 +117,7 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
             cmd('Next Focus Mode', 'focus-cycle', 'CmdOrCtrl+D')
           ]
         },
+        check('Typewriter Scrolling', 'toggle-typewriter', settings.typewriter),
         // macOS adds "Enter Full Screen" here by itself.
         ...(app.isPackaged
           ? []

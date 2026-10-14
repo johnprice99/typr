@@ -313,6 +313,10 @@ body {
   caret-color: var(--accent);
   color: var(--fg);
 }
+/* Typewriter scrolling: room for the last line to reach the middle of the window. */
+#editor .cm-typewriter .cm-content {
+  padding-bottom: 50vh;
+}
 #editor .cm-line {
   padding: 0;
 }

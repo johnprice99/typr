@@ -12,6 +12,8 @@ export interface Settings {
   textScale: number
   /** Show raw Markdown instead of the formatted view. */
   showMarkdown: boolean
+  /** Keep the line you're typing near the middle of the window. */
+  typewriter: boolean
   theme: Theme
   /** Current full-screen state. Not restored on launch. */
   fullscreen: boolean

@@ -8,6 +8,7 @@ import { searchKeymap } from '@codemirror/search'
 import { markdownHighlight, refreshMarks } from './markdown'
 import { layout } from './layout'
 import { frontmatterLines, frontmatterRange, frontmatterSyntax } from './frontmatter'
+import { typewriter } from './typewriter'
 import { Comment, commentsField } from './comments'
 import { insertTable, tableKeys } from './tables'
 import { focusMode } from './focus'
@@ -72,6 +73,8 @@ export interface Editor {
   getDoc(): string
   replaceDoc(text: string): void
   setFocusMode(mode: FocusMode): void
+  /** Typewriter scrolling: keep the line being typed near the middle of the window. */
+  setTypewriter(on: boolean): void
   /** Formatted (live preview) or raw Markdown. */
   setLive(on: boolean): void
   /** Call after the font or text size changes. */
@@ -87,6 +90,8 @@ export interface Editor {
 export function createEditor(parent: HTMLElement, opts: EditorOptions): Editor {
   const focusC = new Compartment()
   const layoutC = new Compartment()
+  const typewriterC = new Compartment()
+  let typewriterExt: Extension = []
   const commentActions = { edit: opts.editComment }
   let layoutExt: Extension = layout(null, commentActions)
   let focusExt: Extension = []
@@ -140,6 +145,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): Editor {
       indentWithTab
     ]),
     focusC.of(focusExt),
+    typewriterC.of(typewriterExt),
     EditorView.updateListener.of((u) => {
       if (u.docChanged) opts.onChange()
       if (u.docChanged || u.selectionSet) opts.onSelection()
@@ -166,6 +172,16 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): Editor {
     setFocusMode(mode) {
       focusExt = mode === 'off' ? [] : focusMode(mode)
       view.dispatch({ effects: focusC.reconfigure(focusExt) })
+    },
+    setTypewriter(on) {
+      typewriterExt = on ? typewriter : []
+      view.dispatch({
+        effects: [
+          typewriterC.reconfigure(typewriterExt),
+          // Turning it on brings the cursor to the middle straight away.
+          ...(on ? [EditorView.scrollIntoView(view.state.selection.main.head, { y: 'center' })] : [])
+        ]
+      })
     },
     setLive(on) {
       layoutExt = layout(on ? { imageUrl: opts.imageUrl } : null, commentActions)
