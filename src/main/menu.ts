@@ -32,6 +32,8 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
         cmd('Check for Updates…', 'check-updates'),
         sep,
         { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
         sep,
         { role: 'quit' }
       ]
@@ -42,6 +44,7 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
         cmd('New', 'new', 'CmdOrCtrl+N'),
         cmd('Open…', 'open', 'CmdOrCtrl+O'),
         cmd('Open Folder…', 'open-folder', 'CmdOrCtrl+Shift+O'),
+        cmd('Close Folder…', 'close-folder'),
         { role: 'recentDocuments', submenu: [{ role: 'clearRecentDocuments' }] },
         sep,
         cmd('Save', 'save', 'CmdOrCtrl+S'),
@@ -49,8 +52,7 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
         cmd('Show in Finder', 'reveal'),
         cmd('Move to Trash', 'trash'),
         sep,
-        cmd('Close Document', 'close-doc', 'CmdOrCtrl+W'),
-        { role: 'close', label: 'Close Window', accelerator: 'CmdOrCtrl+Shift+W' }
+        cmd('Close Document', 'close-doc', 'CmdOrCtrl+W')
       ]
     },
     {
@@ -93,8 +95,9 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
         cmd('Command Palette…', 'palette', 'CmdOrCtrl+Shift+P'),
         check('Show Markdown', 'toggle-markdown', settings.showMarkdown, 'CmdOrCtrl+E'),
         sep,
-        cmd('Bigger Text', 'text-bigger', 'CmdOrCtrl+='),
-        { ...cmd('Bigger Text', 'text-bigger', 'CmdOrCtrl+Plus'), visible: false, acceleratorWorksWhenHidden: true },
+        // Shown as ⌘+ like Apple's apps; ⌘= (no Shift) works too.
+        cmd('Bigger Text', 'text-bigger', 'CmdOrCtrl+Plus'),
+        { ...cmd('Bigger Text', 'text-bigger', 'CmdOrCtrl+='), visible: false, acceleratorWorksWhenHidden: true },
         cmd('Smaller Text', 'text-smaller', 'CmdOrCtrl+-'),
         cmd('Actual Size', 'text-reset', 'CmdOrCtrl+0'),
         {
@@ -106,7 +109,7 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
           ]
         },
         sep,
-        check('Library', 'toggle-sidebar', settings.sidebar, 'CmdOrCtrl+\\'),
+        check('Sidebar', 'toggle-sidebar', settings.sidebar, 'CmdOrCtrl+\\'),
         {
           label: 'Focus',
           submenu: [
@@ -118,7 +121,9 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
           ]
         },
         check('Typewriter Scrolling', 'toggle-typewriter', settings.typewriter),
-        // macOS adds "Enter Full Screen" here by itself.
+        // macOS's own "Enter Full Screen" item is switched off (index.ts); full
+        // screen is the green button, the Window menu, and ⌃⌘F, kept here hidden.
+        { role: 'togglefullscreen', accelerator: 'Ctrl+Cmd+F', visible: false, acceleratorWorksWhenHidden: true },
         ...(app.isPackaged
           ? []
           : [{ role: 'toggleDevTools', visible: false, acceleratorWorksWhenHidden: true } as MenuItemConstructorOptions])

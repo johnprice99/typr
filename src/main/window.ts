@@ -95,8 +95,12 @@ export function createWindow(): void {
   let closing = false
   w.once('ready-to-show', () => {
     if (testing) {
-      // Tests run invisibly and never take focus away from whatever you're doing.
+      // Tests run invisibly and never get in the way of whatever you're doing:
+      // an invisible window would otherwise still catch your clicks and
+      // scrolling. (Tests drive the page directly, not through macOS.)
       w.setOpacity(0)
+      w.setIgnoreMouseEvents(true)
+      w.setFocusable(false)
       w.showInactive()
       return
     }

@@ -59,7 +59,8 @@ test.describe('app chrome', () => {
     expect(find('View')).toContain('Command Palette… [CmdOrCtrl+Shift+P]')
     expect(find('View')).toEqual(
       expect.arrayContaining([
-        'Bigger Text [CmdOrCtrl+=]',
+        'Bigger Text [CmdOrCtrl+Plus]',
+        'Sidebar [CmdOrCtrl+\\]',
         'Smaller Text [CmdOrCtrl+-]',
         'Actual Size [CmdOrCtrl+0]',
         'Appearance'
@@ -68,6 +69,9 @@ test.describe('app chrome', () => {
     expect(find('Typr')).not.toContain('Settings… [CmdOrCtrl+,]')
     expect(find('Typr')).toContain('Check for Updates…')
     expect(find('File')).toContain('Rename… [CmdOrCtrl+Shift+R]')
+    expect(find('File')).toContain('Close Folder…')
+    expect(find('File').some((i) => i.startsWith('Close Window'))).toBe(false)
+    expect(find('Typr')).toEqual(expect.arrayContaining(['Hide Others [Command+Alt+H]', 'Show All']))
     expect(find('Format')).toEqual([
       'Bold [CmdOrCtrl+B]',
       'Italic [CmdOrCtrl+I]',

@@ -1,5 +1,5 @@
 import { testing } from './setup'
-import { app, nativeTheme, net, protocol } from 'electron'
+import { app, nativeTheme, net, protocol, systemPreferences } from 'electron'
 import { existsSync } from 'fs'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
@@ -13,6 +13,9 @@ import { installTestHooks } from './testing'
 import { checkDaily } from './updates'
 import { setWatchEvents } from './watcher'
 import { createWindow, getWindow, isQuitting, openFromOS, send, sendToRenderer, setQuitting } from './window'
+
+// macOS adds "Enter Full Screen" to the View menu by itself; Typr doesn't need it there.
+systemPreferences.setUserDefault('NSFullScreenMenuItemEverywhere', 'boolean', false)
 
 // Lets the editor show images from anywhere on disk (and nothing else).
 protocol.registerSchemesAsPrivileged([

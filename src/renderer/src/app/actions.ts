@@ -102,7 +102,7 @@ export const commands: Record<string, Cmd> = {
   forward: { title: 'Go Forward', keys: '⌘]', run: goForward },
 
   'toggle-sidebar': {
-    title: 'Show Library',
+    title: 'Show Sidebar',
     keys: '⌘\\',
     on: () => app.settings.sidebar,
     run: () => set('sidebar', !app.settings.sidebar)

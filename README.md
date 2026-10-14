@@ -3,7 +3,7 @@
 A quiet Markdown editor. Open it and type.
 
 - Opens maximised on a blank page (it remembers the window size if you change it). It saves itself as you write. A new document is named after its first line, and the name settles once you move on; rename any time with ⇧⌘R or by clicking the title.
-- Plain `.md` files in ordinary folders. **Open Folder…** (⇧⌘O) adds any folder to the sidebar, so notes in Documents and stories in a project folder can sit side by side. Each folder collapses; right-click to close it (nothing on disk changes).
+- Plain `.md` files in ordinary folders. **Open Folder…** (⇧⌘O) adds any folder to the sidebar, so notes in Documents and stories in a project folder can sit side by side. Each folder collapses; close it with File › Close Folder… or by right-clicking (nothing on disk changes).
 - A new document is saved next to the one you're in (or in the only open folder). If there's nowhere obvious, it waits: ⌘S, leaving it, or quitting asks which folder.
 - Markdown links: ⌘-click (or ⌘↩) opens web links in your browser and links to other documents in Typr.
 - Notices when the open file is renamed, moved or deleted in Finder.
@@ -35,7 +35,7 @@ npm test            # unit and end-to-end tests
 npm run format      # format the code with Prettier
 ```
 
-End-to-end tests launch the app once, invisibly and without a Dock icon, and reset it with a throwaway library and settings before each test, so they never touch your documents, settings, clipboard or Recent Documents. The run stops after 5 minutes or 10 failures.
+End-to-end tests launch the app once, invisibly and without a Dock icon (the window lets clicks pass through and never takes focus, so you can keep working), and reset it with a throwaway library and settings before each test, so they never touch your documents, settings, clipboard or Recent Documents. The run stops after 5 minutes or 10 failures.
 
 Icons: `build/Typr.icon` (made in Icon Composer) is the app icon, which macOS shows in light, dark or tinted style to match your Mac; `build/icon.icns` is the fallback for older macOS. `resources/icon-light.png` and `resources/icon-dark.png` are used in the About panel and as the Dock icon when running from source; the website shows the light one. Packaged builds register `.md`, `.markdown` and `.txt`, so **Open With → Typr** works in Finder.
 
@@ -69,7 +69,7 @@ Everything is in the command palette (⇧⌘P), so you never need the mouse.
 | ⇧⌘O          | Open a folder in the sidebar                                    |
 | ⌘S           | Save (only needed to choose where a new document goes)          |
 | ⇧⌘R          | Rename (or click the title)                                     |
-| ⌘\\          | Show / hide library                                             |
+| ⌘\\          | Show / hide the sidebar                                         |
 | ⌘D           | Focus: Off → Paragraph → Sentence                               |
 | ⌘E           | Show Markdown / formatted view                                  |
 | ⌘+ / ⌘− / ⌘0 | Bigger / smaller / actual text size                             |
@@ -86,10 +86,11 @@ Fonts: the Mac's own. The formatted view uses the system font; the Markdown view
 
 ## Code layout
 
-- `src/main/` — the Electron main process: `settings`, `library` (listing and watching folders, safe file names, atomic writes), `watcher` (the open file), `ipc` (file access for the window), `menu`, `window`, `dock`.
+- `src/main/` — the Electron main process: `settings`, `library` (listing and watching folders, safe file names, atomic writes), `watcher` (the open file), `ipc` (file access for the window), `menu`, `window`, `dock`, `updates` and `install` (the self-updater).
 - `src/preload/` — the bridge to the window. Every message is typed in `src/shared/ipc.ts`.
 - `src/renderer/src/app/` — the app: documents and saving (`session`), links, images, comments, open folders (`library`), commands.
 - `src/renderer/src/editor/` — the CodeMirror editor and its features (formatted view, focus, find, tables, comments).
-- `src/renderer/src/ui/` — the palette, the about panel, and the library sidebar.
+- `src/renderer/src/ui/` — the palette, the about panel, and the sidebar.
 - `tests/unit/` (Vitest) and `tests/e2e/` (Playwright).
 - `docs/` — the website; `scripts/screenshots.mjs` takes its screenshots.
+- `AGENTS.md` — rules and gotchas for coding agents working on Typr.
