@@ -32,6 +32,11 @@ export const INVOKE_CHANNELS = [
 export type InvokeChannel = (typeof INVOKE_CHANNELS)[number]
 export type Invoke = Pick<Api, InvokeChannel>
 
+/** The window's function the main process calls to learn what a right-click landed on. */
+export const CONTEXT_PROBE = 'typrContextAt'
+/** The script that asks it about the point (x, y); resolves null if it isn't there. */
+export const contextProbe = (x: number, y: number): string => `window.${CONTEXT_PROBE}?.(${Number(x)}, ${Number(y)}) ?? null`
+
 /** Messages from the main process to the window, with their arguments. */
 export interface Events {
   folders: [folders: FolderListing[], files: string[]]

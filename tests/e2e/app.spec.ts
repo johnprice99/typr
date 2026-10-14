@@ -1,5 +1,6 @@
 import { mkdirSync, readdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
+import { contextProbe } from '../../src/shared/ipc'
 import { expect, settle, test } from './fixtures'
 
 test.describe('comments', () => {
@@ -56,20 +57,34 @@ test.describe('app chrome', () => {
     )
     const find = (label: string): string[] => menus.find((m) => m.label === label)!.items
     expect(find('Edit')).toContain('Find and Replace… [CmdOrCtrl+Shift+F]')
-    expect(find('View')).toContain('Command Palette… [CmdOrCtrl+Shift+P]')
-    expect(find('View')).toEqual(
-      expect.arrayContaining([
-        'Bigger Text [CmdOrCtrl+Plus]',
-        'Sidebar [CmdOrCtrl+\\]',
-        'Smaller Text [CmdOrCtrl+-]',
-        'Actual Size [CmdOrCtrl+0]',
-        'Appearance'
-      ])
-    )
+    expect(find('View')).toEqual([
+      'Show Sidebar [CmdOrCtrl+\\]',
+      'Show Markdown [CmdOrCtrl+E]',
+      'Focus',
+      'Typewriter Scrolling',
+      'Bigger Text [CmdOrCtrl+Plus]',
+      'Smaller Text [CmdOrCtrl+-]',
+      'Actual Size [CmdOrCtrl+0]',
+      'Appearance',
+      'Command Palette… [CmdOrCtrl+Shift+P]'
+    ])
+    expect(find('Edit').slice(-3)).toEqual(['Add Comment [CmdOrCtrl+Shift+M]', 'Go to Comment…', 'Resolve Comment'])
+    expect(find('Edit').some((i) => i.startsWith('Insert'))).toBe(false)
+    expect(find('Help')).toEqual(['Typr Website', 'Report a Problem'])
     expect(find('Typr')).not.toContain('Settings… [CmdOrCtrl+,]')
     expect(find('Typr')).toContain('Check for Updates…')
-    expect(find('File')).toContain('Rename… [CmdOrCtrl+Shift+R]')
-    expect(find('File')).toContain('Close Folder…')
+    expect(find('File')).toEqual([
+      'New [CmdOrCtrl+N]',
+      'Open… [CmdOrCtrl+O]',
+      'Open Recent',
+      'Open Folder… [CmdOrCtrl+Shift+O]',
+      'Close Folder…',
+      'Save [CmdOrCtrl+S]',
+      'Rename… [CmdOrCtrl+Shift+R]',
+      'Show in Finder',
+      'Move to Trash',
+      'Close Document [CmdOrCtrl+W]'
+    ])
     expect(find('File').some((i) => i.startsWith('Close Window'))).toBe(false)
     expect(find('Typr')).toEqual(expect.arrayContaining(['Hide Others [Command+Alt+H]', 'Show All']))
     expect(find('Format')).toEqual([
@@ -78,9 +93,11 @@ test.describe('app chrome', () => {
       'Underline [CmdOrCtrl+U]',
       'Strikethrough [CmdOrCtrl+Shift+X]',
       'Inline Code [CmdOrCtrl+Shift+C]',
-      'Link [CmdOrCtrl+K]'
+      'Link [CmdOrCtrl+K]',
+      'Image…',
+      'Table'
     ])
-    expect(menus.map((m) => m.label)).toEqual(['Typr', 'File', 'Edit', 'Format', 'View', 'Go', 'Window'])
+    expect(menus.map((m) => m.label)).toEqual(['Typr', 'File', 'Edit', 'Format', 'View', 'Go', 'Window', 'Help'])
   })
 
   test('the palette lists commands with ticks for current settings', async ({ launch }) => {
@@ -89,6 +106,67 @@ test.describe('app chrome', () => {
     const items = await t.page.locator('.palette-item').allInnerTexts()
     expect(items.some((i) => /Focus: Paragraph\s*✓/.test(i))).toBe(true)
     expect(items.some((i) => /Appearance: Dark/.test(i))).toBe(true)
+    await t.page.keyboard.press('Escape')
+  })
+
+  test('the palette only offers what can be done, shows ticks with shortcuts, and lists recent commands first', async ({
+    launch
+  }) => {
+    const t = await launch({ files: { 'Note.md': 'A {==note==}{>>check<<} and [a link](https://example.com).' } })
+    const labels = async (): Promise<string[]> => {
+      await t.command('palette')
+      const items = await t.page.locator('.palette-item .label').allInnerTexts()
+      await t.page.keyboard.press('Escape')
+      return items
+    }
+    // An empty, unsaved page: nothing to go to, resolve or follow. (Show in
+    // Finder stays: it shows the folder a new document will go in.)
+    let items = await labels()
+    for (const absent of ['Go to Comment…', 'Resolve Comment', 'Follow Link', 'Remove from Open Files', 'Go Back']) {
+      expect(items).not.toContain(absent)
+    }
+    await t.open(join(t.lib, 'Note.md'))
+    await expect(t.page.locator('#title')).toHaveText('Note')
+    await t.selectText('note')
+    items = await labels()
+    expect(items).toEqual(expect.arrayContaining(['Go to Comment…', 'Resolve Comment', 'Show in Finder']))
+    expect(items).not.toContain('Follow Link')
+    await t.selectText('a link')
+    expect(await labels()).toContain('Follow Link')
+    // A setting that's on shows both its tick and its shortcut.
+    await t.command('toggle-markdown')
+    await t.command('palette')
+    await expect(t.page.locator('.palette-item', { hasText: 'Show Markdown' }).locator('.hint')).toHaveText(/✓\s+⌘E/)
+    // Run a command from the palette: next time it's at the top.
+    await expect(t.page.locator('.palette input')).toBeFocused()
+    await t.page.keyboard.insertText('Typewriter')
+    await t.page.keyboard.press('Enter')
+    await expect.poll(() => t.savedSettings().typewriter).toBe(true)
+    expect((await labels())[0]).toBe('Typewriter Scrolling')
+  })
+
+  test('right-clicking a link offers to open it', async ({ launch }) => {
+    const t = await launch({ files: { 'Note.md': 'Read [the guide](https://example.com/guide) today.' } })
+    await t.open(join(t.lib, 'Note.md'))
+    await expect(t.page.locator('#title')).toHaveText('Note')
+    await t.select(0)
+    // Asked exactly the way the main process asks when you right-click.
+    const probe = (x: number, y: number): Promise<unknown> =>
+      t.app.evaluate(
+        ({ BrowserWindow }, js) => BrowserWindow.getAllWindows()[0].webContents.executeJavaScript(js),
+        contextProbe(x, y)
+      )
+    const box = (await t.page.locator('.cm-content .md-link').first().boundingBox())!
+    const middle = box.y + box.height / 2
+    expect(await probe(box.x + box.width / 2, middle)).toEqual({
+      inEditor: true,
+      selection: false,
+      link: 'https://example.com/guide'
+    })
+    // Off to the right of the line, it isn't the link any more.
+    const line = (await t.page.locator('.cm-content').boundingBox())!
+    expect(await probe(line.x + line.width - 4, middle)).toEqual({ inEditor: true, selection: false, link: null })
+    expect(await probe(5, 5)).toEqual({ inEditor: false, selection: false, link: null })
   })
 
   test('View › Appearance switches System / Light / Dark, ticked and saved', async ({ launch }) => {

@@ -13,7 +13,7 @@ Minimal macOS (Apple silicon only) Markdown editor. Electron + electron-vite + C
 
 - `src/main/` — main process. `ipc.ts` is the only file-system access for the window and is guarded: paths must be inside open folders or known files. `updates.ts`/`install.ts` hold the self-updater.
 - `src/renderer/src/app/session.ts` — document lifecycle. Saves, renames and outside changes go through `serial()`; switching documents goes through `navigate()`. Never await one from inside the other.
-- `src/renderer/src/app/actions.ts` — the command registry. Menu items only send command ids, so add commands here and in `src/main/menu.ts`.
+- `src/renderer/src/app/actions.ts` — the command registry. Menu items only send command ids, so add commands here and in `src/main/menu.ts`. Give a command `available()` if it can't always apply: the palette hides it. Assert the full menu layout in the e2e menu test.
 - `src/shared/` — types, the IPC channel list (`ipc.ts`), and settings normalisation (every new setting needs a default there and in `tests/unit/settings.test.ts`).
 - `docs/` — the static website (GitHub Pages, `main`/`docs`).
 

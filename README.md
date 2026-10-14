@@ -8,13 +8,16 @@ A quiet Markdown editor. Open it and type.
 - Markdown links: ⌘-click (or ⌘↩) opens web links in your browser and links to other documents in Typr.
 - Notices when the open file is renamed, moved or deleted in Finder.
 - You edit a formatted page: headings, bold, links, bullets, checkboxes and images look the way they will read, and the Markdown appears only where your cursor is. **Show Markdown** (⌘E) switches to the plain-text view. The file on disk is always plain Markdown.
-- Focus mode (paragraph by default). Links in dimmed text keep a soft underline.
-- Tables: **Insert Table**, then Tab / ⇧Tab between cells (Tab in the last cell adds a row). They render as a table when you're not editing them.
-- Images: **Insert Image…** or drag one onto the page. Typr links to the file where it is (a relative link within the same open folder, absolute otherwise); nothing is copied. Images from the internet show a placeholder until you click, so opening a document never tells a website you read it.
-- Comments for proofreading: select text, ⇧⌘M, type a note. They're stored in the file as [CriticMarkup](https://fletcher.github.io/MultiMarkdown-6/syntax/critic.html) (`{==text==}{>>note<<}`), shown as highlighted text; hover to read, edit or resolve. **Go to Comment…** lists them all.
+- Focus mode (View › Focus, off by default): dims all but the paragraph or sentence you're writing. Links in dimmed text keep a soft underline.
+- Tables: Format › **Table**, then Tab / ⇧Tab between cells (Tab in the last cell adds a row). They render as a table when you're not editing them.
+- Images: Format › **Image…** or drag one onto the page. Typr links to the file where it is (a relative link within the same open folder, absolute otherwise); nothing is copied. Images from the internet show a placeholder until you click, so opening a document never tells a website you read it.
+- Comments for proofreading: select text, ⇧⌘M, type a note. They're stored in the file as [CriticMarkup](https://fletcher.github.io/MultiMarkdown-6/syntax/critic.html) (`{==text==}{>>note<<}`), shown as highlighted text; hover to read, edit or resolve. **Go to Comment…** lists them all; Edit has all three comment commands.
 - View › Typewriter Scrolling: keeps the line you're typing near the middle of the window.
 - View › Appearance: System, Light or Dark. Text size: ⌘+, ⌘− and ⌘0 (also in the View menu).
-- Typr › Check for Updates…: asks GitHub for the newest release, then downloads it, checks it (same app, the right version, an intact signature) and restarts into it with your document open. Typr also checks quietly once a day. If it can't replace itself (e.g. it's running from the disk image), it offers the download instead.
+- Typr › Check for Updates…: asks GitHub for the newest release, then downloads it, checks it's genuine (signed with the developer's key) and intact, and restarts into it with your document open. Typr also checks quietly once a day. If it can't replace itself (e.g. it's running from the disk image), it offers the download instead.
+- The command palette (⇧⌘P) lists only what you can do right now, your recently used commands first; settings that are on show a tick and their shortcut.
+- Right-click in the text: spelling suggestions, **Open Link** on a link, and **Add Comment** / **Link** for a selection.
+- Help › menu search finds any command; Help also links to the website and to reporting a problem.
 - If another app changes a file while you're typing in it, nothing is lost: their version is kept as a “(changed elsewhere)” copy next to it.
 
 ```sh

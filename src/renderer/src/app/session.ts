@@ -377,7 +377,7 @@ export const openNamed = (name: string): Promise<void> =>
     setDoc(untitled(dir, base), '')
   })
 
-const travel = (from: string[], to: string[]): Promise<void> =>
+const travel = (from: string[], to: string[], way: string): Promise<void> =>
   navigate(async () => {
     while (from.length) {
       const p = from.pop()!
@@ -390,10 +390,13 @@ const travel = (from: string[], to: string[]): Promise<void> =>
       if (result === 'stayed') from.push(p)
       return
     }
+    notify(`Nothing to go ${way} to`)
   })
 
-export const goBack = (): Promise<void> => travel(back, forward)
-export const goForward = (): Promise<void> => travel(forward, back)
+export const canGoBack = (): boolean => back.some((p) => p !== doc.path)
+export const canGoForward = (): boolean => forward.some((p) => p !== doc.path)
+export const goBack = (): Promise<void> => travel(back, forward, 'back')
+export const goForward = (): Promise<void> => travel(forward, back, 'forward')
 
 /** Keep history and recents pointing at a file after it moves. */
 function retarget(old: string, next: string): void {

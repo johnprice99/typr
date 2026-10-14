@@ -9,7 +9,10 @@ import { promptComment } from './app/review'
 import * as session from './app/session'
 import { scheduleStats, updateStats } from './app/status'
 import { createEditor } from './editor/editor'
+import { linkAt } from './editor/links'
 import { imageSrc } from './paths'
+import { CONTEXT_PROBE } from '../../shared/ipc'
+import type { ContextInfo } from '../../shared/types'
 import { isPaletteOpen, onPaletteClose, onPaletteError } from './ui/palette'
 import { isPanelOpen, onPanelClose } from './ui/panels'
 
@@ -46,6 +49,24 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => document.body.classList.toggle('cmd', e.metaKey))
 document.addEventListener('mousemove', () => document.body.classList.remove('typing'))
 window.addEventListener('blur', () => document.body.classList.remove('cmd'))
+
+// The right-click menu (built by the main process) asks what was clicked: the
+// editor or not, whether there's a selection, and any link under the pointer.
+Object.assign(window, {
+  [CONTEXT_PROBE](x: number, y: number): ContextInfo {
+    const view = app.editor.view
+    const inEditor = !!(document.elementFromPoint(x, y) as Element | null)?.closest('.cm-content')
+    const pos = inEditor ? view.posAtCoords({ x, y }) : null
+    // Only on the link itself, not in the empty space beside the end of its line.
+    const at = pos == null ? null : view.coordsAtPos(pos)
+    const onText = !!at && Math.abs(at.left - x) <= view.defaultCharacterWidth * 1.5
+    return {
+      inEditor,
+      selection: inEditor && !view.state.selection.main.empty,
+      link: pos != null && onText ? linkAt(view.state, pos) : null
+    }
+  }
+})
 
 // The end-to-end tests drive the editor directly, and wait on the command count.
 const testHook = { view: app.editor.view, commands: 0, ready: false }

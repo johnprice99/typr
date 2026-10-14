@@ -20,6 +20,15 @@ export interface Settings {
   window: WindowState
 }
 
+/** What a right-click landed on, for the editor's context menu. */
+export interface ContextInfo {
+  inEditor: boolean
+  /** Text is selected in the editor. */
+  selection: boolean
+  /** The address of a link under the pointer. */
+  link: string | null
+}
+
 export interface WindowState {
   maximized: boolean
   bounds?: { x: number; y: number; width: number; height: number }

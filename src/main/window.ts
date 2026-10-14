@@ -3,9 +3,9 @@ import { join } from 'path'
 import { testing } from './setup'
 import { saveSettings, settings, updateSetting } from './settings'
 import { watchCurrent } from './watcher'
-import type { Events, FlushedArgs } from '../shared/ipc'
+import { contextProbe, type Events, type FlushedArgs } from '../shared/ipc'
 import { isExternalUrl } from '../shared/paths'
-import type { Command, Settings } from '../shared/types'
+import type { Command, ContextInfo, Settings } from '../shared/types'
 
 // Typr has a single window. Commands sent while it's closed bring back a fresh one.
 
@@ -167,7 +167,9 @@ export function createWindow(): void {
   })
   w.webContents.on('will-navigate', (e) => e.preventDefault())
 
-  w.webContents.on('context-menu', (_e, params) => {
+  w.webContents.on('context-menu', async (_e, params) => {
+    const info: ContextInfo | null = await w.webContents.executeJavaScript(contextProbe(params.x, params.y)).catch(() => null)
+    if (w.isDestroyed()) return
     const items: MenuItemConstructorOptions[] = []
     for (const s of params.dictionarySuggestions) items.push({ label: s, click: () => w.webContents.replaceMisspelling(s) })
     if (params.misspelledWord) {
@@ -177,6 +179,17 @@ export function createWindow(): void {
       })
     }
     if (items.length) items.push({ type: 'separator' })
+    // In the editor: open the link clicked, or comment on or link the selection
+    // (not within a link: a link can't hold another, and macOS selects the word you right-click).
+    const extra: MenuItemConstructorOptions[] = []
+    if (info?.link) extra.push({ label: 'Open Link', click: () => send({ id: 'open-link', path: info.link! }) })
+    else if (info?.selection) {
+      extra.push(
+        { label: 'Add Comment', click: () => send({ id: 'comment' }) },
+        { label: 'Link', click: () => send({ id: 'link' }) }
+      )
+    }
+    if (extra.length) items.push(...extra, { type: 'separator' })
     items.push({ role: 'cut' }, { role: 'copy' }, { role: 'paste' })
     Menu.buildFromTemplate(items).popup({ window: w })
   })
