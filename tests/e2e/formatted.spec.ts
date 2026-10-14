@@ -221,6 +221,28 @@ test.describe('front matter, text size and closing', () => {
     expect((await t.text()).split('\n')[1]).toBe('title: The Beast of Briarfen (draft)')
   })
 
+  test('a click low on a line below the Properties box or a table still picks that line', async ({ launch }) => {
+    const prose = Array.from({ length: 6 }, (_, i) => `Paragraph ${i + 1} is a line of prose.`).join('\n\n')
+    const t = await launch({ files: { 'Beast.md': `${STORY}\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\n${prose}` } })
+    await t.open(join(t.lib, 'Beast.md'))
+    await expect(t.page.locator('.md-properties')).toBeVisible()
+    await expect(t.page.locator('.md-table-widget')).toBeVisible()
+    const misses = await t.page.evaluate(async () => {
+      const v = (window as never as { typr: { view: import('@codemirror/view').EditorView } }).typr.view
+      v.requestMeasure()
+      await new Promise((r) => setTimeout(r, 200))
+      const out: string[] = []
+      for (const el of document.querySelectorAll<HTMLElement>('.cm-content > .cm-line')) {
+        const r = el.getBoundingClientRect()
+        const line = v.state.doc.lineAt(v.posAtDOM(el)).number
+        const hit = v.posAtCoords({ x: r.left + 10, y: r.bottom - 2 })
+        if (hit == null || v.state.doc.lineAt(hit).number !== line) out.push(`line ${line}`)
+      }
+      return out
+    })
+    expect(misses).toEqual([])
+  })
+
   test('⌘+ and ⌘− step the text size for both views, ⌘0 resets', async ({ launch }) => {
     const t = await launch()
     await t.setText('Some words.')

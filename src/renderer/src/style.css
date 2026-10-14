@@ -477,7 +477,7 @@ body {
 }
 .md-table-widget {
   overflow-x: auto;
-  margin: 0.2em 0 0.4em;
+  padding: 0.2em 0 0.4em;
   cursor: text;
 }
 .md-table-widget table {
@@ -572,17 +572,21 @@ body {
   color: var(--fg);
   border-color: var(--fg);
 }
-/* Front matter: a quiet Properties box; click it to edit the text. */
+/* Front matter: a quiet Properties box; click it to edit the text.
+   Block widgets space themselves with padding, never margins: CodeMirror
+   doesn't measure margins, so clicks below would land on the wrong line. */
+.md-properties-wrap {
+  padding: 0.2em 0 1.2em;
+  font-size: 0.78em;
+}
 .md-properties {
   display: grid;
   grid-template-columns: max-content 1fr;
   gap: 0.35em 1.2em;
-  margin: 0.2em 0 1.2em;
   padding: 0.8em 1em;
   border: 1px solid var(--line);
   border-radius: 8px;
   font-family: var(--ui);
-  font-size: 0.78em;
   line-height: 1.45;
   color: var(--quote);
   cursor: text;

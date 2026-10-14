@@ -118,13 +118,18 @@ class PropertiesWidget extends WidgetType {
       raw.textContent = this.yaml || 'Properties'
       box.append(raw)
     }
+    // The spacing around the box is the wrapper's padding: CodeMirror can't
+    // measure a block's margins, and clicks below it would land a line too low.
+    const wrap = document.createElement('div')
+    wrap.className = 'md-properties-wrap'
+    wrap.append(box)
     // Clicking edits the front matter as text.
-    box.addEventListener('mousedown', (e) => {
+    wrap.addEventListener('mousedown', (e) => {
       e.preventDefault()
       view.dispatch({ selection: { anchor: this.contentFrom }, scrollIntoView: true })
       view.focus()
     })
-    return box
+    return wrap
   }
   ignoreEvent(): boolean {
     return true

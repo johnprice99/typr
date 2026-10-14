@@ -27,6 +27,11 @@ Minimal macOS (Apple silicon only) Markdown editor. Electron + electron-vite + C
 - Install for the user (only when they want it): `osascript -e 'quit app "Typr"'`, wait for exit, `rm -rf /Applications/Typr.app && ditto dist/mac-arm64/Typr.app /Applications/Typr.app && open /Applications/Typr.app`.
 - Don't bump the version or release unless asked.
 
+## Editor gotchas
+
+- Never put CSS margins on editor lines or block widgets (anything directly inside `.cm-content`), including a child's margin that collapses out through its parent. CodeMirror only measures heights, so a margin shifts every line below it and clicks land on the next line down. Space them with padding instead, and wrap bordered boxes (see `.md-properties-wrap`). Add any new block widget to the "click low on a line" test in `formatted.spec.ts`.
+- To find layout bugs like this, compare `view.lineBlockAt(pos).top + view.documentTop` with each `.cm-line`'s `getBoundingClientRect().top`. Any difference is drift.
+
 ## Testing gotchas
 
 - E2E launches the app once, invisibly (opacity 0, no Dock icon), and resets it per test with `__typrReset`. Never relaunch per test, never touch the clipboard, and always cap the run with `alarm`.
