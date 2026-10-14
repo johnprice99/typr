@@ -79,6 +79,7 @@ async function start(): Promise<void> {
     drawSidebar()
   })
   api.onSettings(applySettings)
+  api.onNotice(notify)
   api.onOpen((p) => void session.open(p).catch(shown))
   api.onCommand(({ id, path }) => {
     run(id, path)

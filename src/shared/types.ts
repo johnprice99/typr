@@ -102,6 +102,7 @@ export interface Api {
   /** Reply to onFlush: whether everything was saved, and the document's title. */
   flushed(saved: boolean, title: string): void
   onFolders(cb: (folders: FolderListing[], files: string[]) => void): void
+  onNotice(cb: (text: string) => void): void
   onSettings(cb: (settings: Settings) => void): void
   onCommand(cb: (cmd: Command) => void): void
   onOpen(cb: (path: string) => void): void

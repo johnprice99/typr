@@ -16,6 +16,7 @@ test.describe('writing and saving', () => {
   test('a new document isn’t written until its first line is finished (or you leave it)', async ({ launch }) => {
     const t = await launch({ files: { 'Other.md': 'other' } })
     await t.page.locator('.cm-content').click()
+    await expect(t.page.locator('.cm-content')).toBeFocused()
     await t.page.keyboard.insertText('The Lant')
     await settle(t.page)
     await t.page.keyboard.insertText('ern')

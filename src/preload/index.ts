@@ -27,7 +27,8 @@ const api: Api = {
   onFileChanged: on('file-changed'),
   onFileMoved: on('file-moved'),
   onFileGone: on('file-gone'),
-  onFlush: on('flush')
+  onFlush: on('flush'),
+  onNotice: on('notice')
 }
 
 contextBridge.exposeInMainWorld('api', api)

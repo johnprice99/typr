@@ -4,8 +4,11 @@ import { app } from 'electron'
 // where its settings live, so it must be set before anything reads that path.
 app.setName('Typr')
 
-// The end-to-end tests run Typr against a throwaway settings folder.
-if (process.env.TYPR_USER_DATA) app.setPath('userData', process.env.TYPR_USER_DATA)
+// The end-to-end tests run Typr against a throwaway settings folder (and keep its logs there too).
+if (process.env.TYPR_USER_DATA) {
+  app.setPath('userData', process.env.TYPR_USER_DATA)
+  app.setAppLogsPath(`${process.env.TYPR_USER_DATA}/logs`)
+}
 
 export const testing = process.env.TYPR_TEST === '1'
 

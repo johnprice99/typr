@@ -1,6 +1,6 @@
 {
   "name": "typr",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A quiet Markdown editor for writing stories.",
   "main": "./out/main/index.js",
   "private": true,
@@ -9,7 +9,8 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.test.json",
-    "dist": "electron-vite build && PATH=\"${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}/usr/bin:$PATH\" electron-builder --mac",
+    "dist": "electron-vite build && PATH=\"${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}/usr/bin:$PATH\" electron-builder --mac && node scripts/sign-update.mjs",
+    "update-key": "node scripts/update-key.mjs",
     "pack": "electron-vite build && PATH=\"${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}/usr/bin:$PATH\" electron-builder --mac --dir",
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "vitest run",

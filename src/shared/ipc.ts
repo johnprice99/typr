@@ -43,6 +43,8 @@ export interface Events {
   'file-gone': [path: string]
   /** The window is closing: save, then reply on FLUSHED. */
   flush: []
+  /** A short message for the window's notice bar (e.g. update progress). */
+  notice: [text: string]
 }
 
 /** The window's reply to `flush`: whether everything was saved, and the document's title. */

@@ -23,6 +23,12 @@ export const setQuitting = (on: boolean): void => {
 }
 export const isQuitting = (): boolean => quitting
 
+const quitCancelled: (() => void)[] = []
+/** Adds a listener for when a quit is called off ("Don't Quit"). */
+export const onQuitCancelled = (cb: () => void): void => {
+  quitCancelled.push(cb)
+}
+
 export const getWindow = (): BrowserWindow | null => win
 
 /** Sends a menu command; with no window (or one still starting), it's run once a new one is ready. */
@@ -127,6 +133,7 @@ export function createWindow(): void {
       void askToDiscard(w, title, unanswered).then((discard) => {
         if (discard) return finish()
         closing = false
+        if (quitting) for (const cb of quitCancelled) cb()
         quitting = false
       })
     }

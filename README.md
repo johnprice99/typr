@@ -13,7 +13,7 @@ A quiet Markdown editor. Open it and type.
 - Images: **Insert Image…** or drag one onto the page. Typr links to the file where it is (a relative link within the same open folder, absolute otherwise); nothing is copied. Images from the internet show a placeholder until you click, so opening a document never tells a website you read it.
 - Comments for proofreading: select text, ⇧⌘M, type a note. They're stored in the file as [CriticMarkup](https://fletcher.github.io/MultiMarkdown-6/syntax/critic.html) (`{==text==}{>>note<<}`), shown as highlighted text; hover to read, edit or resolve. **Go to Comment…** lists them all.
 - View › Appearance: System, Light or Dark. Text size: ⌘+, ⌘− and ⌘0 (also in the View menu).
-- Typr › Check for Updates…: asks GitHub for the newest release and offers to download it; Typr also checks quietly once a day.
+- Typr › Check for Updates…: asks GitHub for the newest release, then downloads it, checks it (same app, the right version, an intact signature) and restarts into it with your document open. Typr also checks quietly once a day. If it can't replace itself (e.g. it's running from the disk image), it offers the download instead.
 - If another app changes a file while you're typing in it, nothing is lost: their version is kept as a “(changed elsewhere)” copy next to it.
 
 ```sh
@@ -38,11 +38,21 @@ End-to-end tests launch the app once, invisibly and without a Dock icon, and res
 
 Icons: `build/Typr.icon` (made in Icon Composer) is the app icon, which macOS shows in light, dark or tinted style to match your Mac; `build/icon.icns` is the fallback for older macOS. `resources/icon-light.png` and `resources/icon-dark.png` are used in the About panel and as the Dock icon when running from source; the website shows the light one. Packaged builds register `.md`, `.markdown` and `.txt`, so **Open With → Typr** works in Finder.
 
+## Releasing
+
+1. Bump `version` in `package.json` (e.g. 1.2.0 → 1.3.0 for new features, → 1.2.1 for fixes).
+2. `npm run dist`: builds `dist/Typr-mac-arm64.dmg` and signs it, writing `dist/Typr-mac-arm64.dmg.sig`.
+3. On GitHub, **Releases › Draft a new release**: a new tag (e.g. `1.3.0`), a title, and attach **both** files. Publish.
+
+Copies of Typr then offer the update, download it, and install it themselves, but only if its `.sig` checks out against the key built into the app (`src/main/update-key.ts`). Without a `.sig`, they offer the browser download instead; with a wrong one, they refuse it.
+
+**The signing key** is `~/.config/typr/update-key.pem` (made once with `npm run update-key`, never in the repo). Back it up somewhere safe. If it's lost or leaked, delete it, run `npm run update-key` for a new one, commit the new `src/main/update-key.ts` and release; copies with the old key fall back to the browser download once.
+
 ## Website
 
 `docs/` is a single static page (no build step) with a download link. To publish it with GitHub Pages: **Settings › Pages › Deploy from a branch › `main` / `docs`**. (On a free GitHub plan, Pages and release downloads need the repository to be public.)
 
-- **Download link:** points at `releases/latest/download/Typr-mac-arm64.dmg`, so it always gets the newest release. To publish one, make a GitHub release and attach `dist/Typr-mac-arm64.dmg` from `npm run dist`.
+- **Download link:** points at `releases/latest/download/Typr-mac-arm64.dmg`, so it always gets the newest release (see Releasing).
 - **Screenshots:** `npm run screenshots` retakes `docs/images/*.png` from the real app, using made-up sample documents (invisibly, like the tests).
 
 ## Keys
