@@ -25,6 +25,9 @@ dmg:
   # A fixed name, so the website's download link (the newest release's
   # Typr-mac-arm64.dmg) keeps working from one version to the next.
   artifactName: ${productName}-mac-arm64.${ext}
+  # Typr has its own updater, so electron-builder's update files (latest-mac.yml
+  # and .blockmap) aren't needed.
+  writeUpdateInfo: false
 fileAssociations:
   - ext: [md, markdown]
     name: Markdown Document
