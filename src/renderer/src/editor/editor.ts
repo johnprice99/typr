@@ -72,9 +72,8 @@ export interface Editor {
   setDoc(text: string): void
   getDoc(): string
   replaceDoc(text: string): void
+  /** Dim all but the paragraph or sentence, or (typewriter) keep the line being typed in the middle. */
   setFocusMode(mode: FocusMode): void
-  /** Typewriter scrolling: keep the line being typed near the middle of the window. */
-  setTypewriter(on: boolean): void
   /** Formatted (live preview) or raw Markdown. */
   setLive(on: boolean): void
   /** Call after the font or text size changes. */
@@ -90,8 +89,6 @@ export interface Editor {
 export function createEditor(parent: HTMLElement, opts: EditorOptions): Editor {
   const focusC = new Compartment()
   const layoutC = new Compartment()
-  const typewriterC = new Compartment()
-  let typewriterExt: Extension = []
   const commentActions = { edit: opts.editComment }
   let layoutExt: Extension = layout(null, commentActions)
   let focusExt: Extension = []
@@ -145,7 +142,6 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): Editor {
       indentWithTab
     ]),
     focusC.of(focusExt),
-    typewriterC.of(typewriterExt),
     EditorView.updateListener.of((u) => {
       if (u.docChanged) opts.onChange()
       if (u.docChanged || u.selectionSet) opts.onSelection()
@@ -170,16 +166,12 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): Editor {
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text }, selection: { anchor: head } })
     },
     setFocusMode(mode) {
-      focusExt = mode === 'off' ? [] : focusMode(mode)
-      view.dispatch({ effects: focusC.reconfigure(focusExt) })
-    },
-    setTypewriter(on) {
-      typewriterExt = on ? typewriter : []
+      focusExt = mode === 'off' ? [] : mode === 'typewriter' ? typewriter : focusMode(mode)
       view.dispatch({
         effects: [
-          typewriterC.reconfigure(typewriterExt),
-          // Turning it on brings the cursor to the middle straight away.
-          ...(on ? [EditorView.scrollIntoView(view.state.selection.main.head, { y: 'center' })] : [])
+          focusC.reconfigure(focusExt),
+          // Typewriter brings the cursor to the middle straight away.
+          ...(mode === 'typewriter' ? [EditorView.scrollIntoView(view.state.selection.main.head, { y: 'center' })] : [])
         ]
       })
     },

@@ -61,7 +61,6 @@ test.describe('app chrome', () => {
       'Show Sidebar [CmdOrCtrl+\\]',
       'Show Markdown [CmdOrCtrl+E]',
       'Focus',
-      'Typewriter Scrolling',
       'Bigger Text [CmdOrCtrl+Plus]',
       'Smaller Text [CmdOrCtrl+-]',
       'Actual Size [CmdOrCtrl+0]',
@@ -139,10 +138,10 @@ test.describe('app chrome', () => {
     await expect(t.page.locator('.palette-item', { hasText: 'Show Markdown' }).locator('.hint')).toHaveText(/✓\s+⌘E/)
     // Run a command from the palette: next time it's at the top.
     await expect(t.page.locator('.palette input')).toBeFocused()
-    await t.page.keyboard.insertText('Typewriter')
+    await t.page.keyboard.insertText('Focus: Typewriter')
     await t.page.keyboard.press('Enter')
-    await expect.poll(() => t.savedSettings().typewriter).toBe(true)
-    expect((await labels())[0]).toBe('Typewriter Scrolling')
+    await expect.poll(() => t.savedSettings().focus).toBe('typewriter')
+    expect((await labels())[0]).toBe('Focus: Typewriter')
   })
 
   test('right-clicking a link offers to open it', async ({ launch }) => {

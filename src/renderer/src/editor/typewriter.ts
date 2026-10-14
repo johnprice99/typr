@@ -1,8 +1,8 @@
 import { EditorState, Extension, Transaction } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 
-// Typewriter scrolling: the line you're typing stays near the middle of the
-// window instead of drifting down to the bottom edge. Only typing and moving
+// Focus › Typewriter: the line you're typing stays near the middle of the
+// window instead of drifting down to the bottom edge (nothing is dimmed). Only typing and moving
 // with the keyboard scroll the page; clicking never moves it under the mouse.
 // Room below the last line (see style.css) lets the end of a document reach
 // the middle too.

@@ -15,7 +15,7 @@ export function stepScale(current: number, by: 1 | -1): number {
   return TEXT_SCALES[Math.max(0, Math.min(TEXT_SCALES.length - 1, i + by))]
 }
 export const THEMES: Theme[] = ['system', 'light', 'dark']
-export const FOCUS_MODES: FocusMode[] = ['off', 'paragraph', 'sentence']
+export const FOCUS_MODES: FocusMode[] = ['off', 'paragraph', 'sentence', 'typewriter']
 
 const oneOf = <T>(value: unknown, allowed: T[], fallback: T): T => (allowed.includes(value as T) ? (value as T) : fallback)
 const bool = (value: unknown, fallback: boolean): boolean => (typeof value === 'boolean' ? value : fallback)
@@ -25,6 +25,8 @@ export function normalizeSettings(saved: Record<string, unknown>): Settings {
   // Older versions: focus was on/off plus a scope, and text size was a number.
   let focus = saved.focus
   if (typeof focus === 'boolean') focus = focus ? (saved.focusScope ?? 'paragraph') : 'off'
+  // …and briefly typewriter scrolling was its own switch: now it's a focus mode.
+  if (saved.typewriter === true && (focus === 'off' || focus === undefined)) focus = 'typewriter'
   // …and briefly a choice of small / medium / large.
   const named: Record<string, number> = { small: 0.9, medium: 1, large: 1.1 }
   const textScale = typeof saved.textScale === 'number' ? saved.textScale : (named[saved.textSize as string] ?? 1)
@@ -47,7 +49,6 @@ export function normalizeSettings(saved: Record<string, unknown>): Settings {
     focus: oneOf(focus, FOCUS_MODES, 'off'),
     textScale: nearestScale(textScale),
     showMarkdown: bool(saved.showMarkdown, false),
-    typewriter: bool(saved.typewriter, false),
     theme: oneOf(saved.theme, THEMES, 'system'),
     // Full screen is never restored at launch; the window starts maximised instead.
     fullscreen: false,

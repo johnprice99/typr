@@ -103,11 +103,11 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
             radio('Off', 'focus-off', settings.focus === 'off'),
             radio('Paragraph', 'focus-paragraph', settings.focus === 'paragraph'),
             radio('Sentence', 'focus-sentence', settings.focus === 'sentence'),
+            radio('Typewriter', 'focus-typewriter', settings.focus === 'typewriter'),
             sep,
             cmd('Next Focus Mode', 'focus-cycle', 'CmdOrCtrl+D')
           ]
         },
-        check('Typewriter Scrolling', 'toggle-typewriter', settings.typewriter),
         sep,
         // Shown as ⌘+ like Apple's apps; ⌘= (no Shift) works too.
         cmd('Bigger Text', 'text-bigger', 'CmdOrCtrl+Plus'),

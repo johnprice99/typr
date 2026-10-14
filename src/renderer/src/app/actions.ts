@@ -92,11 +92,6 @@ export const commands: Record<string, Cmd> = {
     on: () => app.settings.showMarkdown,
     run: () => set('showMarkdown', !app.settings.showMarkdown)
   },
-  'toggle-typewriter': {
-    title: 'Typewriter Scrolling',
-    on: () => app.settings.typewriter,
-    run: () => set('typewriter', !app.settings.typewriter)
-  },
   'new-folder': { title: 'New Folder…', run: (p) => newFolder(p) },
   trash: { title: 'Move Document to Trash', available: () => !!current().path || hasText(), run: (p) => trash(p) },
   reveal: {

@@ -329,12 +329,12 @@ test.describe('fixes from the third review', () => {
   })
 })
 
-test.describe('typewriter scrolling', () => {
-  test('keeps the line you’re typing near the middle of the window', async ({ launch }) => {
+test.describe('typewriter focus', () => {
+  test('keeps the line you’re typing near the middle of the window, without dimming', async ({ launch }) => {
     const t = await launch()
     await t.setText(Array.from({ length: 120 }, (_, i) => `Line ${i + 1} of a long story.`).join('\n\n'))
-    await t.command('toggle-typewriter')
-    await expect.poll(() => t.savedSettings().typewriter).toBe(true)
+    await t.command('focus-typewriter')
+    await expect.poll(() => t.savedSettings().focus).toBe('typewriter')
     /** How far down the window the cursor is (0 = top, 1 = bottom). */
     const where = (): Promise<number> =>
       t.page.evaluate(() => {
@@ -350,11 +350,16 @@ test.describe('typewriter scrolling', () => {
     for (let i = 0; i < 12; i++) await t.page.keyboard.press('ArrowUp')
     await expect.poll(where).toBeGreaterThan(0.35)
     expect(await where()).toBeLessThan(0.65)
-    // It's a tick in the View menu.
-    const ticked = await t.app.evaluate(({ Menu }) => {
+    // Nothing is dimmed.
+    await expect(t.page.locator('.cm-dim')).toHaveCount(0)
+    // It's the fourth choice in View › Focus, ticked; ⌘D cycles through all four.
+    const focusMenu = await t.app.evaluate(({ Menu }) => {
       const view = Menu.getApplicationMenu()!.items.find((m) => m.label === 'View')!.submenu!
-      return view.items.find((i) => i.label === 'Typewriter Scrolling')?.checked
+      const focus = view.items.find((i) => i.label === 'Focus')!.submenu!
+      return focus.items.filter((i) => i.type === 'radio').map((i) => `${i.label}${i.checked ? ' ✓' : ''}`)
     })
-    expect(ticked).toBe(true)
+    expect(focusMenu).toEqual(['Off', 'Paragraph', 'Sentence', 'Typewriter ✓'])
+    await t.command('focus-cycle')
+    await expect.poll(() => t.savedSettings().focus).toBe('off')
   })
 })

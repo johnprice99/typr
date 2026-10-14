@@ -29,7 +29,6 @@ describe('settings from disk', () => {
       focus: 'off',
       textScale: 1,
       showMarkdown: false,
-      typewriter: false,
       theme: 'system',
       fullscreen: false,
       window: { maximized: true, bounds: undefined }
@@ -40,6 +39,10 @@ describe('settings from disk', () => {
     const s = normalizeSettings({ focus: true, focusScope: 'sentence', textScale: 1.2, font: 'serif' })
     expect(s.focus).toBe('sentence')
     expect(normalizeSettings({ focus: false }).focus).toBe('off')
+    // Typewriter scrolling was briefly its own switch; it's now a focus mode.
+    expect(normalizeSettings({ focus: 'off', typewriter: true }).focus).toBe('typewriter')
+    expect(normalizeSettings({ focus: 'sentence', typewriter: true }).focus).toBe('sentence')
+    expect('typewriter' in normalizeSettings({ typewriter: true })).toBe(false)
     expect(s.textScale).toBe(1.2)
     expect('font' in s).toBe(false)
   })

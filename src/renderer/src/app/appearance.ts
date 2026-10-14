@@ -33,7 +33,6 @@ export function applySettings(next: Settings): void {
   const liveChanged = !prev || prev.showMarkdown !== next.showMarkdown
   if (liveChanged) editor.setLive(!next.showMarkdown)
   if (!prev || prev.focus !== next.focus) editor.setFocusMode(next.focus)
-  if (!prev || prev.typewriter !== next.typewriter) editor.setTypewriter(next.typewriter)
   // Hanging markers are measured in the real font and size.
   if (liveChanged || prev.textScale !== next.textScale) void document.fonts.ready.then(() => editor.refreshLayout())
 }
