@@ -73,8 +73,8 @@ export function buildMenu(settings: Settings, send: (cmd: Command) => void): voi
         cmd('Find and Replace…', 'replace', 'CmdOrCtrl+Shift+F'),
         sep,
         cmd('Add Comment', 'comment', 'CmdOrCtrl+Shift+M'),
-        cmd('Go to Comment…', 'comments'),
-        cmd('Resolve Comment', 'resolve-comment')
+        cmd('Next Comment', 'next-comment', 'CmdOrCtrl+Shift+]'),
+        cmd('Previous Comment', 'previous-comment', 'CmdOrCtrl+Shift+[')
       ]
     },
     {

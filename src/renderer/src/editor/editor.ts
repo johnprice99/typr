@@ -9,7 +9,7 @@ import { markdownHighlight, refreshMarks } from './markdown'
 import { layout } from './layout'
 import { frontmatterLines, frontmatterRange, frontmatterSyntax } from './frontmatter'
 import { typewriter } from './typewriter'
-import { Comment, commentsField } from './comments'
+import { Comment, commentsField, criticSyntax, outsideMarkup } from './comments'
 import { insertTable, tableKeys } from './tables'
 import { focusMode } from './focus'
 import { findBar } from './find'
@@ -63,6 +63,8 @@ export interface EditorOptions {
   follow: (url: string) => void
   imageUrl: (href: string) => string
   editComment: (c: Comment) => void
+  /** The comment card's ‹ and ›. */
+  stepComment: (forward: boolean) => void
   /** Files dropped or pasted onto the page. Return true if handled. */
   insertFiles: (files: File[], pos: number) => boolean
 }
@@ -89,7 +91,7 @@ export interface Editor {
 export function createEditor(parent: HTMLElement, opts: EditorOptions): Editor {
   const focusC = new Compartment()
   const layoutC = new Compartment()
-  const commentActions = { edit: opts.editComment }
+  const commentActions = { edit: opts.editComment, step: opts.stepComment }
   let layoutExt: Extension = layout(null, commentActions)
   let focusExt: Extension = []
 
@@ -99,7 +101,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): Editor {
     EditorView.lineWrapping,
     EditorState.tabSize.of(4),
     EditorView.contentAttributes.of({ spellcheck: 'true', autocorrect: 'on', autocapitalize: 'on' }),
-    markdown({ base: markdownLanguage, addKeymap: false, extensions: [frontmatterSyntax] }),
+    markdown({ base: markdownLanguage, addKeymap: false, extensions: [frontmatterSyntax, criticSyntax] }),
     frontmatterLines,
     Prec.high(
       keymap.of([
@@ -178,6 +180,10 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): Editor {
     setLive(on) {
       layoutExt = layout(on ? { imageUrl: opts.imageUrl } : null, commentActions)
       view.dispatch({ effects: layoutC.reconfigure(layoutExt) })
+      // The cursor may have been in markup the formatted view now hides.
+      const { head, empty } = view.state.selection.main
+      const outside = outsideMarkup(view.state, head)
+      if (on && empty && outside !== head) view.dispatch({ selection: { anchor: outside } })
     },
     refreshLayout: () => refreshMarks(view),
     format: (f) => void wrap(f)(view),

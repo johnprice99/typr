@@ -22,7 +22,7 @@ Minimal macOS (Apple silicon only) Markdown editor. Electron + electron-vite + C
 - Ask before anything disruptive: quitting the user's Typr, `killall Dock`, changing system settings, publishing.
 - Never modify the user's documents. Read-only sample: `~/work/unbroken-chronicles/stories/the-beast-of-briarfen.md`.
 - Mac built-in fonts only (system sans; Menlo for mono). No iA Writer fonts or references.
-- Minimal UI; everything reachable from the keyboard and the palette (⇧⌘P). Settings live in menus; there's no Settings panel.
+- Minimal UI. The palette (⇧⌘P) is for things you'd look up by name: documents, views, settings, inserting. Actions on whatever is under the cursor live on it (the comment card, the right-click menu) or behind a shortcut, not in the palette (e.g. Resolve, Accept/Reject, Follow Link). Settings live in menus; there's no Settings panel.
 - Before committing: review the diff (a subagent review for anything non-trivial), fix findings, run the check and e2e.
 - Install for the user (only when they want it): `osascript -e 'quit app "Typr"'`, wait for exit, `rm -rf /Applications/Typr.app && ditto dist/mac-arm64/Typr.app /Applications/Typr.app && open /Applications/Typr.app`.
 - Don't bump the version or release unless asked.

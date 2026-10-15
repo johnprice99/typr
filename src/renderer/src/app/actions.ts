@@ -1,7 +1,6 @@
 import { redo, undo } from '@codemirror/commands'
-import { commentAt, listComments } from '../editor/comments'
+import { listComments } from '../editor/comments'
 import { openFind } from '../editor/find'
-import { linkAt } from '../editor/links'
 import { readList } from '../storage'
 import { ISSUES, WEBSITE } from '../../../shared/urls'
 import { openList, PaletteItem } from '../ui/palette'
@@ -11,7 +10,7 @@ import { api, app, notify, errorText } from './context'
 import { pickImage } from './images'
 import { closeFolder, openFolder, quickOpen } from './library'
 import { follow, followAtCursor } from './navigation'
-import { goToComment, promptComment, resolveAtCursor } from './review'
+import { goToComment, promptComment } from './review'
 import {
   canGoBack,
   canGoForward,
@@ -43,8 +42,8 @@ interface Cmd {
 
 /** What Show in Finder shows: the document, or where a new one will go. */
 const revealTarget = (): string | undefined => current().path ?? current().dir ?? app.folders[0]?.path
-const head = (): number => app.editor.view.state.selection.main.head
 const hasText = (): boolean => app.editor.view.state.doc.length > 0
+const hasComments = (): boolean => listComments(app.editor.view.state).length > 0
 
 const choices = <T extends string>(
   prefix: string,
@@ -110,23 +109,15 @@ export const commands: Record<string, Cmd> = {
   image: { title: 'Insert Image…', run: () => pickImage().catch((e) => notify(`Couldn't add image: ${errorText(e)}`)) },
   table: { title: 'Insert Table', run: () => app.editor.insertTable() },
   comment: { title: 'Add Comment', keys: '⇧⌘M', run: () => promptComment() },
-  comments: { title: 'Go to Comment…', available: () => listComments(app.editor.view.state).length > 0, run: goToComment },
-  'resolve-comment': {
-    title: 'Resolve Comment',
-    available: () => !!commentAt(app.editor.view.state, head()),
-    run: resolveAtCursor
-  },
+  'next-comment': { title: 'Next Comment', keys: '⇧⌘]', available: hasComments, run: () => goToComment(true) },
+  'previous-comment': { title: 'Previous Comment', keys: '⇧⌘[', available: hasComments, run: () => goToComment(false) },
   bold: { title: 'Bold', keys: '⌘B', run: () => app.editor.format('bold') },
   italic: { title: 'Italic', keys: '⌘I', run: () => app.editor.format('italic') },
   underline: { title: 'Underline', keys: '⌘U', run: () => app.editor.format('underline') },
   strike: { title: 'Strikethrough', keys: '⇧⌘X', run: () => app.editor.format('strike') },
   code: { title: 'Inline Code', keys: '⇧⌘C', run: () => app.editor.format('code') },
-  'follow-link': {
-    title: 'Follow Link',
-    keys: '⌘↩',
-    available: () => !!linkAt(app.editor.view.state, head()),
-    run: followAtCursor
-  },
+  // Acts on the link at the cursor, so it's in the Go menu and on ⌘↩, not the palette.
+  'follow-link': { title: 'Follow Link', keys: '⌘↩', hidden: true, run: followAtCursor },
   /** Right-click › Open Link: follows the link that was clicked. */
   'open-link': { title: 'Open Link', hidden: true, run: (url) => (url ? follow(url) : followAtCursor()) },
   back: { title: 'Go Back', keys: '⌘[', available: canGoBack, run: goBack },

@@ -5,7 +5,7 @@ import { $, api, app, errorText, notify } from './app/context'
 import { insertFiles } from './app/images'
 import { chooseWhere, drawSidebar } from './app/library'
 import { follow } from './app/navigation'
-import { promptComment } from './app/review'
+import { goToComment, promptComment } from './app/review'
 import * as session from './app/session'
 import { scheduleStats, updateStats } from './app/status'
 import { createEditor } from './editor/editor'
@@ -25,6 +25,7 @@ app.editor = createEditor($('editor'), {
   follow,
   imageUrl: (href) => imageSrc(href, session.hereDir() ?? '/'),
   editComment: (c) => promptComment(c),
+  stepComment: goToComment,
   insertFiles
 })
 

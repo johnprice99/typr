@@ -1,11 +1,22 @@
-import { EditorView } from '@codemirror/view'
-import { addComment, Comment, commentAt, editComment, listComments, resolveComment } from '../editor/comments'
-import { openList, openPrompt } from '../ui/palette'
+import {
+  addComment,
+  Comment,
+  commentAt,
+  editComment,
+  goToComment as goTo,
+  isSuggestion,
+  listComments,
+  same
+} from '../editor/comments'
+import { inCode } from '../editor/syntax'
+import { openPrompt } from '../ui/palette'
 import { app, notify } from './context'
 
-// Comments for proofreading: adding, editing, resolving and jumping between them.
+// Comments and suggestions for proofreading: adding and editing comments, and
+// moving from one to the next. (Resolving, accepting and rejecting are on the card.)
 
 const snippet = (s: string, n = 40): string => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s)
+const quote = (s: string, n?: number): string => `“${snippet(s.replace(/\s+/g, ' '), n)}”`
 
 /** Add a comment on the selection (or the word at the cursor), or edit the one you're in. */
 export function promptComment(existing?: Comment): void {
@@ -13,6 +24,7 @@ export function promptComment(existing?: Comment): void {
   const { state } = view
   const sel = state.selection.main
   const comment = existing ? commentAt(state, existing.from) : commentAt(state, sel.head)
+  if (comment && isSuggestion(comment)) return notify('Accept or reject the suggestion first')
   if (comment) {
     openPrompt({
       placeholder: 'Comment…',
@@ -20,12 +32,13 @@ export function promptComment(existing?: Comment): void {
       submit: (note) => {
         // The document may have changed while the prompt was open; find the comment again.
         const fresh = commentAt(view.state, comment.from)
-        if (fresh && fresh.note === comment.note && fresh.text === comment.text) editComment(view, fresh, note)
+        if (same(fresh, comment)) editComment(view, fresh, note)
         else notify('The comment moved; try again')
       }
     })
     return
   }
+  if (inCode(state, sel.from)) return notify('Comments can’t go in code')
   let { from, to } = sel
   if (sel.empty) {
     const word = state.wordAt(sel.head)
@@ -34,10 +47,11 @@ export function promptComment(existing?: Comment): void {
   const text = state.sliceDoc(from, to)
   if (!text.trim()) return notify('Select some text to comment on')
   // Wrapping text that overlaps another comment would produce broken markup.
-  if (listComments(state).some((c) => c.from < to && c.to > from)) return notify('That overlaps an existing comment')
+  if (listComments(state).some((c) => c.from < to && c.to > from))
+    return notify('That overlaps an existing comment or suggestion')
   if (/\n[ \t]*\n/.test(text)) return notify('A comment can only cover one paragraph')
   openPrompt({
-    placeholder: `Comment on “${snippet(text.replace(/\s+/g, ' '), 30)}”…`,
+    placeholder: `Comment on ${quote(text, 30)}…`,
     submit: (note) => {
       if (view.state.sliceDoc(from, to) === text) addComment(view, from, to, note)
       else notify('The text changed; try again')
@@ -45,29 +59,10 @@ export function promptComment(existing?: Comment): void {
   })
 }
 
-export function resolveAtCursor(): void {
-  const view = app.editor.view
-  const c = commentAt(view.state, view.state.selection.main.head)
-  if (c) resolveComment(view, c)
-  else notify('No comment here')
-}
-
-export function goToComment(): void {
-  const view = app.editor.view
-  const list = listComments(view.state)
-  if (!list.length) return notify('No comments in this document')
-  openList({
-    placeholder: 'Go to comment…',
-    items: list.map((c) => ({
-      label: c.note || '(empty comment)',
-      detail: `“${snippet(c.text.replace(/\s+/g, ' '))}”`,
-      run: () => {
-        view.dispatch({
-          selection: { anchor: c.textFrom, head: c.textTo },
-          effects: EditorView.scrollIntoView(c.textFrom, { y: 'center' })
-        })
-        view.focus()
-      }
-    }))
-  })
+/** Next (or previous) comment or suggestion, where its card shows. */
+export function goToComment(forward: boolean): void {
+  const moved = goTo(app.editor.view, forward)
+  if (moved === 'none') notify('No comments in this document')
+  else if (moved === 'only') notify('That’s the only comment')
+  else if (moved === 'wrapped') notify(forward ? 'Back to the first comment' : 'Back to the last comment')
 }

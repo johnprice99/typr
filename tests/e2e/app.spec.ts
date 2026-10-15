@@ -4,7 +4,7 @@ import { contextProbe } from '../../src/shared/ipc'
 import { expect, settle, test } from './fixtures'
 
 test.describe('comments', () => {
-  test('add, show as a highlight, read on hover, list, edit and resolve', async ({ launch }) => {
+  test('add, show as a highlight, read at the cursor, go to, edit and resolve', async ({ launch }) => {
     const t = await launch()
     await t.setText('The harbour was quiet that morning.\n\nEnd.')
     await t.selectText('quiet')
@@ -19,21 +19,174 @@ test.describe('comments', () => {
     await expect(t.page.locator('.md-comment')).toHaveText('quiet')
     await expect(t.page.locator('#stats')).toContainText('1 comment')
 
-    // The hover card needs the pointer to arrive and rest, like a real mouse.
-    const box = (await t.page.locator('.md-comment').boundingBox())!
-    await t.page.mouse.move(box.x + box.width / 2 - 3, box.y + box.height / 2)
-    await t.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 3 })
+    // With the cursor resting in it, the markup stays hidden and its card shows.
+    await t.select((await t.text()).indexOf('uiet'))
     await expect(t.page.locator('.comment-tip')).toContainText('Too passive?')
+    expect(await t.lineShown(1)).toBe('The harbour was quiet that morning.')
 
-    await t.command('comments')
-    await expect(t.page.locator('.palette-item')).toHaveCount(1)
-    await t.page.keyboard.press('Enter')
+    await t.select(0)
+    await t.command('next-comment')
+    await expect(t.page.locator('.comment-tip')).toContainText('Too passive?')
     await t.command('comment')
     await expect(t.page.locator('.palette input')).toHaveValue('Too passive?')
     await t.page.keyboard.press('Escape')
+    await t.command('next-comment')
+    await expect(t.page.locator('#toast')).toHaveText('That’s the only comment')
 
-    await t.command('resolve-comment')
+    await t.page.locator('.comment-tip button', { hasText: 'Resolve' }).click()
     expect(await t.text()).toBe('The harbour was quiet that morning.\n\nEnd.')
+  })
+
+  test('suggestions show old and new text, with the note at the cursor, and can be accepted or rejected', async ({ launch }) => {
+    const t = await launch()
+    await t.setText(
+      'He ran. {~~Old habit.~>It was an old habit.~~}{>>R2.1: fragment.<<} The sound{--, like a drum--}{>>R2.3: wrong simile.<<}.{++ He knew.++}{>>R2.12: link.<<}\n\nEnd.'
+    )
+    expect(await t.lineShown(1)).toBe('He ran. Old habit. It was an old habit. The sound, like a drum. He knew.')
+    expect(await t.page.locator('.md-sugg-old').allTextContents()).toEqual(['Old habit.', ', like a drum'])
+    expect(await t.page.locator('.md-sugg-new').allTextContents()).toEqual(['It was an old habit.', ' He knew.'])
+    await expect(t.page.locator('.md-strike')).toHaveCount(0)
+    await expect(t.page.locator('#stats')).toContainText('3 suggestions')
+    await expect(t.page.locator('#stats')).not.toContainText('comment')
+
+    // Next Comment goes from one to the next, then back to the first.
+    const head = (): Promise<number> => t.page.evaluate('window.typr.view.state.selection.main.head') as Promise<number>
+    const starts = ['Old habit.', ', like a drum', ' He knew.']
+    await t.select(0)
+    for (const start of [...starts, starts[0]]) {
+      await t.command('next-comment')
+      expect(await head()).toBe((await t.text()).indexOf(start))
+    }
+    await expect(t.page.locator('#toast')).toHaveText('Back to the first comment')
+    await t.select((await t.text()).indexOf('an old habit'))
+    await expect(t.page.locator('.comment-tip')).toContainText('R2.1: fragment.')
+    await t.page.locator('.comment-tip button', { hasText: 'Accept' }).click()
+    expect(await t.text()).toContain('He ran. It was an old habit. The sound{--')
+
+    // The palette moves between them; acting on one is the card's job.
+    const tip = t.page.locator('.comment-tip')
+    await t.command('next-comment')
+    await expect(tip).toContainText('R2.3: wrong simile.')
+    await t.command('palette')
+    const items = await t.page.locator('.palette-item .label').allInnerTexts()
+    await t.page.keyboard.press('Escape')
+    expect(items).toEqual(expect.arrayContaining(['Next Comment', 'Previous Comment']))
+    for (const absent of ['Accept Suggestion', 'Reject Suggestion', 'Resolve Comment']) expect(items).not.toContain(absent)
+
+    // The card's ‹ › step from one to the next and back.
+    await tip.locator('button[title="Next comment"]').click()
+    await expect(tip).toContainText('R2.12: link.')
+    await tip.locator('button[title="Previous comment"]').click()
+    await expect(tip).toContainText('R2.3: wrong simile.')
+    await tip.locator('button', { hasText: 'Reject' }).click()
+    expect(await t.text()).toContain('The sound, like a drum.{++')
+
+    // Previous goes round from the first to the last.
+    await t.select(0)
+    await t.command('previous-comment')
+    await expect(t.page.locator('#toast')).toHaveText('Back to the last comment')
+    await expect(tip).toContainText('R2.12: link.')
+    await tip.locator('button', { hasText: 'Accept' }).click()
+    expect(await t.text()).toBe('He ran. It was an old habit. The sound, like a drum. He knew.\n\nEnd.')
+  })
+
+  test('the text in a comment or suggestion edits like any other, and accepting or resolving keeps the edit', async ({
+    launch
+  }) => {
+    const t = await launch()
+    const tip = t.page.locator('.comment-tip')
+    const at = async (needle: string, offset = 0): Promise<void> => t.select((await t.text()).indexOf(needle) + offset)
+    await t.setText('He {~~ran~>walked home~~}{>>R2: why.<<} and {==sat==}{>>note<<} down.')
+    await at('home')
+    await expect(t.page.locator('.cm-content')).toBeFocused()
+    await expect(tip).toContainText('R2: why.')
+
+    // Typing inside the new text: the markup stays hidden and the card steps aside.
+    await t.page.keyboard.type('slowly ')
+    expect(await t.text()).toContain('{~~ran~>walked slowly home~~}{>>R2: why.<<}')
+    expect(await t.lineShown(1)).toBe('He ran walked slowly home and sat down.')
+    await expect(tip).toHaveCount(0)
+    // Typing over, and deleting, a selected word inside it.
+    await t.selectText('slowly')
+    await t.page.keyboard.type('quickly')
+    await t.selectText('quickly ')
+    await t.page.keyboard.press('Backspace')
+    expect(await t.text()).toContain('{~~ran~>walked home~~}')
+    // Backspace at the start of the new text deletes from the old; Delete at its end, the space after it.
+    await at('walked')
+    await t.page.keyboard.press('Backspace')
+    await at('home~~}', 4)
+    await t.page.keyboard.press('Delete')
+    expect(await t.text()).toBe('He {~~ra~>walked home~~}{>>R2: why.<<}and {==sat==}{>>note<<} down.')
+
+    await at('walked', 2)
+    await expect(tip).toContainText('R2: why.')
+    await tip.locator('button', { hasText: 'Accept' }).click()
+    expect(await t.text()).toBe('He walked homeand {==sat==}{>>note<<} down.')
+
+    // Typing at the end of a highlight extends it; resolving keeps the new text.
+    await at('sat==}', 3)
+    await t.page.keyboard.type('isfied')
+    expect(await t.text()).toContain('{==satisfied==}{>>note<<}')
+    await at('satisfied', 2)
+    await expect(tip).toContainText('note')
+    await tip.locator('button', { hasText: 'Resolve' }).click()
+    expect(await t.text()).toBe('He walked homeand satisfied down.')
+
+    // Selecting across the whole of one and deleting takes it all, markup and note.
+    await t.setText('A {--cut--}{>>n<<} B')
+    await t.select(1, '{--cut--}{>>n<<}'.length + 2)
+    await t.page.keyboard.press('Backspace')
+    expect(await t.text()).toBe('A B')
+  })
+
+  test('the cursor steps over hidden markup, and deleting never breaks it', async ({ launch }) => {
+    const t = await launch()
+    const doc = 'Ab {--cd--}{>>why<<} ef'
+    await t.setText(doc, doc.indexOf(' ef'))
+    await expect(t.page.locator('.cm-content')).toBeFocused()
+    expect(await t.lineShown(1)).toBe('Ab cd ef')
+    await expect(t.page.locator('.comment-tip')).toContainText('why')
+    const head = (): Promise<number> => t.page.evaluate('window.typr.view.state.selection.main.head') as Promise<number>
+    await t.page.keyboard.press('ArrowLeft')
+    expect(await head()).toBe(doc.indexOf('d--'))
+    await t.page.keyboard.press('ArrowRight')
+    await t.page.keyboard.press('ArrowRight')
+    expect(await head()).toBe(doc.indexOf('ef'))
+
+    await t.select(doc.indexOf(' ef'))
+    await t.page.keyboard.press('Backspace')
+    expect(await t.text()).toBe('Ab {--c--}{>>why<<} ef')
+    await expect(t.page.locator('.comment-tip')).toHaveCount(0)
+    // Deleting the last of its text takes the whole suggestion with it.
+    await t.page.keyboard.press('Backspace')
+    expect(await t.text()).toBe('Ab  ef')
+
+    // The space between old and new text is a stop of its own.
+    const swap = 'A {~~old~>new~~} z'
+    await t.setText(swap, swap.indexOf('~>'))
+    await t.page.keyboard.press('ArrowRight')
+    expect(await head()).toBe(swap.indexOf('new'))
+    await t.page.keyboard.press('ArrowLeft')
+    expect(await head()).toBe(swap.indexOf('~>'))
+
+    // Backspace at the start of a list item still removes the bullet.
+    await t.setText('- {==x==}{>>n<<}', '- {=='.length)
+    await t.page.keyboard.press('Backspace')
+    expect(await t.text()).toBe('{==x==}{>>n<<}')
+    await t.select(3)
+
+    // The card is the app's own, not CodeMirror's grey box.
+    await expect(t.page.locator('.comment-tip')).toBeVisible()
+    expect(await t.page.locator('.comment-tip').evaluate((e) => getComputedStyle(e).borderTopWidth)).toBe('0px')
+
+    // A cursor left in a note in the Markdown view comes out when the formatted view hides it.
+    await t.command('toggle-markdown')
+    await t.select('{==x==}{>>'.length + 1)
+    // The Markdown view shows the card too, so nothing needs the raw markup edited.
+    await expect(t.page.locator('.comment-tip')).toContainText('n')
+    await t.command('toggle-markdown')
+    expect(await head()).toBe('{==x==}{>>n<<}'.length)
   })
 
   test('a comment needs some text to sit on', async ({ launch }) => {
@@ -67,7 +220,11 @@ test.describe('app chrome', () => {
       'Appearance',
       'Command Palette… [CmdOrCtrl+Shift+P]'
     ])
-    expect(find('Edit').slice(-3)).toEqual(['Add Comment [CmdOrCtrl+Shift+M]', 'Go to Comment…', 'Resolve Comment'])
+    expect(find('Edit').slice(-3)).toEqual([
+      'Add Comment [CmdOrCtrl+Shift+M]',
+      'Next Comment [CmdOrCtrl+Shift+]]',
+      'Previous Comment [CmdOrCtrl+Shift+[]'
+    ])
     expect(find('Edit').some((i) => i.startsWith('Insert'))).toBe(false)
     expect(find('Help')).toEqual(['Typr Website', 'Report a Problem'])
     expect(find('Typr')).not.toContain('Settings… [CmdOrCtrl+,]')
@@ -118,20 +275,21 @@ test.describe('app chrome', () => {
       await t.page.keyboard.press('Escape')
       return items
     }
-    // An empty, unsaved page: nothing to go to, resolve or follow. (Show in
-    // Finder stays: it shows the folder a new document will go in.)
+    // An empty, unsaved page: no comments to go to. (Show in Finder stays: it
+    // shows the folder a new document will go in.)
     let items = await labels()
-    for (const absent of ['Go to Comment…', 'Resolve Comment', 'Follow Link', 'Remove from Open Files', 'Go Back']) {
+    for (const absent of ['Next Comment', 'Resolve Comment', 'Follow Link', 'Remove from Open Files', 'Go Back']) {
       expect(items).not.toContain(absent)
     }
     await t.open(join(t.lib, 'Note.md'))
     await expect(t.page.locator('#title')).toHaveText('Note')
     await t.selectText('note')
     items = await labels()
-    expect(items).toEqual(expect.arrayContaining(['Go to Comment…', 'Resolve Comment', 'Show in Finder']))
-    expect(items).not.toContain('Follow Link')
+    expect(items).toEqual(expect.arrayContaining(['Next Comment', 'Previous Comment', 'Show in Finder']))
+    // Acting on the comment or link under the cursor isn't the palette's job.
+    expect(items).not.toContain('Resolve Comment')
     await t.selectText('a link')
-    expect(await labels()).toContain('Follow Link')
+    expect(await labels()).not.toContain('Follow Link')
     // A setting that's on shows both its tick and its shortcut.
     await t.command('toggle-markdown')
     await t.command('palette')

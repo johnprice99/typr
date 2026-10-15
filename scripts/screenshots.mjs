@@ -104,11 +104,14 @@ async function main() {
     await cursorAfter('the long grey line of the sea.')
     await shot('writing-light')
 
-    // Comments live in the file; Go to Comment lists their notes.
-    await command('comments')
-    await page.waitForTimeout(200)
+    // Comments live in the file; with the cursor in one, its note shows.
+    await page.evaluate(() => {
+      const v = window.typr.view
+      v.dispatch({ selection: { anchor: v.state.doc.toString().indexOf('broken pane') + 3 } })
+      v.contentDOM.blur() // no blinking cursor in the picture
+    })
+    await page.waitForTimeout(800)
     await shot('comments')
-    await page.keyboard.press('Escape')
 
     // The same page in dark, then with focus on the paragraph being written.
     await page.emulateMedia({ colorScheme: 'dark' })

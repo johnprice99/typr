@@ -11,7 +11,9 @@ A quiet Markdown editor. Open it and type.
 - Focus (View › Focus, ⌘D to cycle; off by default): **Paragraph** or **Sentence** dims all but the one you're writing (links in dimmed text keep a soft underline); **Typewriter** dims nothing but keeps the line you're typing in the middle of the window.
 - Tables: Format › **Table**, then Tab / ⇧Tab between cells (Tab in the last cell adds a row). They render as a table when you're not editing them.
 - Images: Format › **Image…** or drag one onto the page. Typr links to the file where it is (a relative link within the same open folder, absolute otherwise); nothing is copied. Images from the internet show a placeholder until you click, so opening a document never tells a website you read it.
-- Comments for proofreading: select text, ⇧⌘M, type a note. They're stored in the file as [CriticMarkup](https://fletcher.github.io/MultiMarkdown-6/syntax/critic.html) (`{==text==}{>>note<<}`), shown as highlighted text; hover to read, edit or resolve. **Go to Comment…** lists them all; Edit has all three comment commands.
+- Comments for proofreading: select text, ⇧⌘M, type a note. They're stored in the file as [CriticMarkup](https://fletcher.github.io/MultiMarkdown-6/syntax/critic.html) (`{==text==}{>>note<<}`), shown as highlighted text; put the cursor in one and its card shows the note, with **Edit** and **Resolve**, and **‹ ›** to step to the previous or next comment. **Next Comment** (⇧⌘]) and **Previous Comment** (⇧⌘[) get you to one.
+- Suggestions, also CriticMarkup: a replacement `{~~old~>new~~}`, an addition `{++new++}` or a cut `{--old--}`, each optionally followed by a `{>>note<<}`. The old text shows struck through in red and the new text in green; put the cursor in one and its card shows the note, with **Accept** and **Reject** (and **‹ ›**). Accepting keeps the new text, rejecting keeps the old, and the note goes either way. Next and Previous Comment include suggestions.
+- In the formatted view, the markup and notes of comments and suggestions stay hidden while you edit; the cursor steps over them and deleting never breaks them. Show Markdown (⌘E) shows the raw markup.
 - View › Appearance: System, Light or Dark. Text size: ⌘+, ⌘− and ⌘0 (also in the View menu).
 - Typr › Check for Updates…: asks GitHub for the newest release, then downloads it, checks it's genuine (signed with the developer's key) and intact, and restarts into it with your document open. Typr also checks quietly once a day. If it can't replace itself (e.g. it's running from the disk image), it offers the download instead.
 - The command palette (⇧⌘P) lists only what you can do right now, your recently used commands first; settings that are on show a tick and their shortcut.
@@ -60,7 +62,7 @@ Copies of Typr then offer the update, download it, and install it themselves, bu
 
 ## Keys
 
-Everything is in the command palette (⇧⌘P), so you never need the mouse.
+Anything you'd look up by name is in the command palette (⇧⌘P). Actions on what's under the cursor live elsewhere: on a comment's card, in the right-click menu, or on a shortcut.
 
 |              |                                                                 |
 | ------------ | --------------------------------------------------------------- |
@@ -83,6 +85,7 @@ Everything is in the command palette (⇧⌘P), so you never need the mouse.
 | ⌘B / ⌘I      | Bold / italic                                                   |
 | ⌘K           | Insert link. Pasting a URL onto selected text also makes a link |
 | ⇧⌘M          | Add a comment (or edit the one under the cursor)                |
+| ⇧⌘] / ⇧⌘[    | Next / previous comment or suggestion                           |
 
 Fonts: the Mac's own. The formatted view uses the system font; the Markdown view and code use Menlo (Electron can't reach SF Mono).
 

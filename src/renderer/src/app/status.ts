@@ -1,9 +1,9 @@
-import { listComments, stripComments } from '../editor/comments'
+import { isSuggestion, listComments, stripComments } from '../editor/comments'
 import { frontmatterRange } from '../editor/frontmatter'
 import { $, app } from './context'
 import { needsAPlace } from './session'
 
-// The quiet line at the bottom right: words, reading time and comments.
+// The quiet line at the bottom right: words, reading time, comments and suggestions.
 // Counting reads the whole document, so it waits for a pause in typing.
 
 let timer = 0
@@ -27,11 +27,14 @@ export function updateStats(): void {
   // A word has at least one letter or digit (so "---" and " - " don't count).
   const words = text.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0
   const mins = Math.max(1, Math.round(words / 230))
-  const notes = listComments(state).length
+  const all = listComments(state)
+  const suggestions = all.filter(isSuggestion).length
+  const notes = all.length - suggestions
   const parts = [
     words ? `${words.toLocaleString()} ${sel.empty ? 'words' : 'selected'}` : '',
     words ? `${mins} min` : '',
-    notes ? `${notes} comment${notes === 1 ? '' : 's'}` : ''
+    notes ? `${notes} comment${notes === 1 ? '' : 's'}` : '',
+    suggestions ? `${suggestions} suggestion${suggestions === 1 ? '' : 's'}` : ''
   ]
   // An empty page stays empty; the only hints live down here, out of the way.
   if (state.doc.length === 0) $('stats').textContent = '⇧⌘P for commands'

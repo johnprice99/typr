@@ -12,6 +12,9 @@
   --line: rgba(0, 0, 0, 0.07);
   --comment: rgba(255, 196, 0, 0.28);
   --comment-ink: #c99400;
+  --added: #23863f;
+  --added-bg: rgba(46, 160, 67, 0.12);
+  --removed: #c4473b;
   --shadow: 0 12px 40px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.06);
   --ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
   --sidebar-w: 260px;
@@ -42,6 +45,9 @@
     --line: rgba(255, 255, 255, 0.06);
     --comment: rgba(255, 196, 0, 0.2);
     --comment-ink: #e0b030;
+    --added: #6cc486;
+    --added-bg: rgba(46, 160, 67, 0.16);
+    --removed: #e57b70;
     --shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
     color-scheme: dark;
   }
@@ -638,9 +644,19 @@ body {
   color: var(--comment-ink);
   font-style: italic;
 }
-.cm-tooltip.cm-tooltip-hover {
+/* Suggestions: the old text struck through, the new text in green. */
+#editor .md-sugg-old {
+  color: var(--removed);
+  text-decoration: line-through;
+}
+#editor .md-sugg-new {
+  color: var(--added);
+  background: var(--added-bg);
+  border-radius: 2px;
+}
+#editor .cm-tooltip.comment-tip {
   border: 0;
-  background: transparent;
+  background: var(--bg-raised);
 }
 .comment-tip {
   max-width: 340px;
@@ -660,6 +676,12 @@ body {
   display: flex;
   justify-content: flex-end;
   gap: 4px;
+}
+/* ‹ › on the left, the actions on the right. */
+.comment-tip-nav {
+  display: flex;
+  gap: 2px;
+  margin-right: auto;
 }
 .comment-tip button {
   padding: 2px 8px;
