@@ -1,6 +1,6 @@
 {
   "name": "typr",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "A quiet Markdown editor for writing stories.",
   "main": "./out/main/index.js",
   "private": true,
