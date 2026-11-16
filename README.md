@@ -2,7 +2,7 @@
 
 A quiet Markdown editor. Open it and type.
 
-- Opens maximised on a blank page (it remembers the window size if you change it). It saves itself as you write. A new document is named after its first line, and the name settles once you move on; rename any time with ⇧⌘R or by clicking the title.
+- Opens maximised (it remembers the window size if you change it), on the document you had open last, or a blank page if you'd closed it. It saves itself as you write. A new document is named after its first line, and the name settles once you move on; rename any time with ⇧⌘R or by clicking the title.
 - Plain `.md` files in ordinary folders. **Open Folder…** (⇧⌘O) adds any folder to the sidebar, so notes in Documents and stories in a project folder can sit side by side. Each folder collapses; close it with File › Close Folder… or by right-clicking (nothing on disk changes).
 - A new document is saved next to the one you're in (or in the only open folder). If there's nowhere obvious, it waits: ⌘S, leaving it, or quitting asks which folder.
 - Markdown links: ⌘-click (or ⌘↩) opens web links in your browser and links to other documents in Typr.

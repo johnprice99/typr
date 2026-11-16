@@ -123,6 +123,8 @@ async function start(): Promise<void> {
     }
   })
 
+  // Pick up where you left off, unless Finder (or an update) asked for a particular file.
+  if (!init.pendingOpen.length) await session.reopenLast().catch(shown)
   for (const p of init.pendingOpen) await session.open(p).catch(shown)
   for (const { id, path } of init.pendingCommands) run(id, path)
   testHook.ready = true

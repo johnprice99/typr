@@ -1,4 +1,4 @@
-import { mkdirSync, readdirSync, writeFileSync } from 'fs'
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { contextProbe } from '../../src/shared/ipc'
 import { expect, settle, test } from './fixtures'
@@ -565,6 +565,42 @@ test.describe('folder order', () => {
       t.lib
     )
     expect(result).toContain('exactly the open folders')
+  })
+})
+
+test.describe('reopening', () => {
+  test('the last document reopens at launch; a blank page or a deleted file starts blank', async ({ launch }) => {
+    const t = await launch({ files: { 'Note.md': '# Note', 'Other.md': '# Other' } })
+    const relaunch = async (): Promise<void> => {
+      await t.page.reload()
+      await t.page.waitForFunction(() => (window as never as { typr?: { ready: boolean } }).typr?.ready === true)
+    }
+    await t.open(join(t.lib, 'Note.md'))
+    await expect(t.page.locator('#title')).toHaveText('Note')
+    await relaunch()
+    await expect(t.page.locator('#title')).toHaveText('Note')
+    expect(await t.text()).toBe('# Note')
+    // It's saved for a new document too, once it has a name.
+    await t.command('new')
+    await t.page.keyboard.insertText('# Fresh\n')
+    await expect.poll(() => t.ls()).toContain('Fresh.md')
+    await expect(t.page.locator('#title')).toHaveText('Fresh')
+    await relaunch()
+    await expect(t.page.locator('#title')).toHaveText('Fresh')
+    // Closed: a blank page next time.
+    await t.command('close-doc')
+    await relaunch()
+    await expect(t.page.locator('#title')).toHaveText('Untitled')
+    // Gone since (e.g. deleted while Typr was closed): a blank page, no complaint.
+    await t.open(join(t.lib, 'Other.md'))
+    await expect(t.page.locator('#title')).toHaveText('Other')
+    await t.page.evaluate((p) => localStorage.setItem('typr.last', p), join(t.lib, 'Other.md'))
+    rmSync(join(t.lib, 'Other.md'))
+    await expect(t.page.locator('#title')).toHaveText('Untitled')
+    await t.page.evaluate((p) => localStorage.setItem('typr.last', p), join(t.lib, 'Other.md'))
+    await relaunch()
+    await expect(t.page.locator('#title')).toHaveText('Untitled')
+    expect(await t.text()).toBe('')
   })
 })
 

@@ -50,6 +50,10 @@ const untitled = (dir: string | null, name?: string): Doc => ({
 
 let doc: Doc = untitled(null)
 
+/** The document open when Typr last quit (or its window closed); none if it was a blank page. */
+const LAST = 'typr.last'
+const lastAtLaunch = localStorage.getItem(LAST)
+
 // The editor works with "\n" line breaks; files keep whatever they had (e.g. Windows "\r\n").
 const fromDisk = (raw: string): string => raw.replace(/\r\n?/g, '\n')
 const eolOf = (raw: string): Doc['eol'] => (raw.includes('\r\n') ? '\r\n' : '\n')
@@ -284,8 +288,18 @@ function setDoc(next: Doc, text: string): void {
 
 function announce(): void {
   api.setCurrent(doc.path, title())
+  if (doc.path) localStorage.setItem(LAST, doc.path)
+  else localStorage.removeItem(LAST)
   for (const cb of listeners) cb()
 }
+
+/** At launch: reopens the last document, if it's still there and nothing else has been opened or typed. */
+export const reopenLast = (): Promise<void> =>
+  navigate(async () => {
+    const path = lastAtLaunch
+    if (!path || doc.path || app.editor.getDoc() || !(await api.exists(path))) return
+    await openNow(path, () => {})
+  })
 
 /**
  * Where new documents go: next to the current one; with nothing to put it next
